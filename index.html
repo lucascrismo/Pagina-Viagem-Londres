@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Viagem Londres 2027</title>
+  <style>
+    :root {
+      --fundo: #eef2f5;
+      --texto: #14213d;
+      --azul: #0019a8;
+      --vermelho: #dc241f;
+      --suave: #5b6b7f;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --fundo: #0e1522;
+        --texto: #e8edf3;
+        --azul: #3d5afe;
+        --vermelho: #ff4d47;
+        --suave: #9aa8ba;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 24px;
+      background: var(--fundo);
+      color: var(--texto);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      text-align: center;
+    }
+    h1 { margin: 0; font-size: 1.6rem; font-weight: 700; }
+    .sub { margin: 4px 0 0; color: var(--suave); }
+
+    /* Roundel: círculo vermelho com a barra azul, como o símbolo do metrô de Londres */
+    .roundel {
+      position: relative;
+      width: 230px;
+      height: 230px;
+      border: 20px solid var(--vermelho);
+      border-radius: 50%;
+    }
+    .dias {
+      position: absolute;
+      top: 22px;
+      left: 0;
+      right: 0;
+      font-size: 3.4rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .barra {
+      position: absolute;
+      top: 50%;
+      left: -34px;
+      right: -34px;
+      transform: translateY(-50%);
+      padding: 10px 0;
+      background: var(--azul);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .datas { margin: 0; padding: 0; list-style: none; line-height: 1.9; }
+    .datas strong { display: inline-block; min-width: 92px; }
+    .status { color: var(--suave); font-size: 0.9rem; max-width: 32ch; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Viagem Londres 2027</h1>
+    <p class="sub">Lucas e Emily</p>
+  </header>
+
+  <div class="roundel" role="img" aria-label="Contagem regressiva para a viagem">
+    <div class="dias" id="dias">--</div>
+    <div class="barra" id="legenda">dias para a saída</div>
+  </div>
+
+  <ul class="datas">
+    <li><strong>Saída</strong> 06/02/2027</li>
+    <li><strong>Chegada</strong> 07/02/2027</li>
+    <li><strong>Retorno</strong> 13/02/2027</li>
+  </ul>
+
+  <p class="status">Página publicada com sucesso. Em breve, aqui ficam os gastos, a arrecadação e o roteiro.</p>
+
+  <script>
+    // Conta quantos dias faltam até a saída (06/02/2027).
+    // No JavaScript, os meses começam em 0: fevereiro = 1.
+    const saida = new Date(2027, 1, 6);
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const msPorDia = 24 * 60 * 60 * 1000;
+    const faltam = Math.round((saida - hoje) / msPorDia);
+
+    const elDias = document.getElementById("dias");
+    const elLegenda = document.getElementById("legenda");
+
+    if (faltam > 1) {
+      elDias.textContent = faltam;
+      elLegenda.textContent = "dias para a saída";
+    } else if (faltam === 1) {
+      elDias.textContent = "1";
+      elLegenda.textContent = "dia para a saída";
+    } else {
+      elDias.textContent = "✈";
+      elLegenda.textContent = "Boa viagem!";
+    }
+  </script>
+</body>
+</html>
