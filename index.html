@@ -12,8 +12,8 @@ body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-
 .w{max-width:760px;margin:0 auto;padding:16px}
 header h1{margin:0;font-size:1.4rem}
 header p{margin:2px 0 0;color:var(--suave)}
-nav{display:flex;gap:4px;margin:16px 0;border-bottom:1px solid var(--borda)}
-nav button{flex:1;padding:12px 4px;background:none;border:0;border-bottom:3px solid transparent;color:var(--suave);font:inherit;font-weight:600;cursor:pointer}
+nav{display:flex;overflow-x:auto;gap:4px;margin:16px 0;border-bottom:1px solid var(--borda)}
+nav button{flex:1 0 auto;white-space:nowrap;padding:12px 10px;background:none;border:0;border-bottom:3px solid transparent;color:var(--suave);font:inherit;font-weight:600;cursor:pointer}
 nav button.on{color:var(--texto);border-color:var(--vermelho)}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
 .card{background:var(--cartao);border:1px solid var(--borda);border-radius:10px;padding:14px;margin-bottom:12px}
@@ -63,6 +63,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     <button data-aba="gastos">Gastos</button>
     <button data-aba="aportes">Aportes</button>
     <button data-aba="cambio">Câmbio</button>
+    <button data-aba="despesas">Despesas</button>
     <button data-aba="dados">Dados</button>
   </nav>
   <main>
@@ -70,6 +71,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     <div id="gastos" hidden></div>
     <div id="aportes" hidden></div>
     <div id="cambio" hidden><div id="conv"></div><div id="dolar"></div></div>
+    <div id="despesas" hidden><div id="dp_form"></div><div id="dp_lista"></div></div>
     <div id="dados" hidden>
       <div class="card">
         <h2>Backup e importação</h2>
@@ -120,6 +122,7 @@ function norm(){
   estado.config = Object.assign({pessoas:2, cotacao:0, usd:0, ajuste:0, nome1:"Pessoa 1", nome2:"Pessoa 2"}, estado.config || {});
   delete estado.config.caixa; delete estado.config.meses;
   if (!Array.isArray(estado.conversoes)) estado.conversoes = [];
+  if (!Array.isArray(estado.despesas)) estado.despesas = [];
   if (!Array.isArray(estado.aportes)) estado.aportes = MESES.map(([mes,f],k) => ({id:"a"+k, mes, lucas:0, emily:0, futuro:!!f}));
 }
 const U = v => Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"USD"});
@@ -322,6 +325,110 @@ $("conv").addEventListener("click", e => {
   if (b.id==="cb_atu") buscar();
 });
 
+// ---- Despesas ao vivo na viagem ----
+const DCATS = ["Alimentação","Transporte","Compras em geral"];
+const dp = {moeda:"GBP", tu:0, tb:0, man:false, infoU:"", infoB:""};
+const M = (v,m) => Number(v).toLocaleString("pt-BR",{style:"currency",currency:m});
+
+async function obterTaxa(de, para){
+  if (de === para) return {rate:1, date:""};
+  const par = de+"-"+para;
+  try {
+    const r = await fetch(`https://api.frankfurter.dev/v2/rate/${de.toLowerCase()}/${para.toLowerCase()}`);
+    if (!r.ok) throw 0;
+    const d = await r.json(); if (!(d.rate > 0)) throw 0;
+    const c = lerCache(); c[par] = {rate:d.rate, date:d.date};
+    try { localStorage.setItem(CK, JSON.stringify(c)); } catch(e) {}
+    return {rate:d.rate, date:d.date};
+  } catch(e) { const c = lerCache()[par]; return c ? {rate:c.rate, date:c.date, cache:true} : null; }
+}
+
+function despForm(){
+  const hoje = new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  $("dp_form").innerHTML =
+   `<div class="card"><h2>Registrar despesa</h2>
+      <div class="cfg">
+        <label>Data<input type="date" id="dp_data" value="${hoje}"></label>
+        <label>Categoria<select id="dp_cat">${DCATS.map(k => `<option>${k}</option>`).join("")}</select></label>
+        <label>Moeda<select id="dp_moeda">${MOEDAS.map(m => `<option ${m===dp.moeda?"selected":""}>${m}</option>`).join("")}</select></label>
+      </div>
+      <label style="display:block;margin-top:10px;font-size:.85rem;color:var(--suave)">Descrição (opcional)<input class="man" id="dp_desc" placeholder="Ex.: café da manhã"></label>
+      <div class="cfg">
+        <label>Valor<input type="number" step="any" inputmode="decimal" id="dp_val"></label>
+        <label>Cotação → US$<input type="number" step="any" inputmode="decimal" id="dp_tu"></label>
+        <label>Cotação US$ → R$<input type="number" step="any" inputmode="decimal" id="dp_tb"></label>
+      </div>
+      <p id="dp_info" class="vazio"></p>
+      <p id="dp_prev" style="font-size:1.2rem;margin:10px 0"></p>
+      <div class="acoes"><button class="btn" id="dp_add">Registrar despesa</button><button class="btn sec" id="dp_auto">Usar cotações automáticas</button></div>
+    </div>`;
+}
+
+function despPrev(){
+  const v = +$("dp_val").value || 0, tu = +$("dp_tu").value || 0, tb = +$("dp_tb").value || 0, usd = v*tu;
+  $("dp_prev").textContent = v && tu ? `≈ ${U(usd)}` + (tb ? ` ≈ ${R(usd*tb)}` : "") : "—";
+}
+
+function despCampos(){
+  $("dp_tu").value = dp.tu || ""; $("dp_tb").value = dp.tb || "";
+  $("dp_info").textContent = `Cotação → US$: ${dp.infoU}. US$ → R$: ${dp.infoB}.`;
+  despPrev();
+}
+
+async function despAuto(forcar){
+  dp.man = false;
+  const a = await obterTaxa(dp.moeda, "USD");
+  if (a) { dp.tu = a.rate; dp.infoU = a.cache ? `última salva (${fmt(a.date)})` : (a.date ? `automática (${fmt(a.date)})` : "1 para 1"); }
+  else { dp.tu = 0; dp.infoU = "indisponível, digite manualmente"; }
+  if (!forcar && estado.config.cotacao > 0) { dp.tb = estado.config.cotacao; dp.infoB = "cotação do dólar do Resumo"; }
+  else {
+    const b = await obterTaxa("USD", "BRL");
+    if (b) { dp.tb = b.rate; dp.infoB = b.cache ? `última salva (${fmt(b.date)})` : `automática (${fmt(b.date)})`; }
+    else { dp.tb = 0; dp.infoB = "indisponível, digite manualmente"; }
+  }
+  despCampos();
+}
+
+function addDesp(){
+  const v = +$("dp_val").value, tu = +$("dp_tu").value, tb = +$("dp_tb").value;
+  if (!(v>0 && tu>0 && tb>0)) { alert("Informe o valor e as duas cotações."); return; }
+  const usd = v*tu;
+  estado.despesas.push({id:"d"+Date.now(), data:$("dp_data").value, desc:$("dp_desc").value.trim(), cat:$("dp_cat").value, moeda:$("dp_moeda").value, valor:v, taxaUsd:tu, taxaBrl:tb, usd, brl:usd*tb, manual:dp.man});
+  $("dp_val").value = ""; $("dp_desc").value = ""; despPrev(); tudo();
+}
+
+function despesas(){
+  const dsp = estado.despesas, c = calc(), cot = estado.config.cotacao;
+  const soma2 = (l,k) => l.reduce((x,d) => x+d[k], 0);
+  const totU = soma2(dsp,"usd"), totB = soma2(dsp,"brl"), rest = c.usdTot - totU;
+  const ord = [...dsp].sort((a,b) => (b.data||"").localeCompare(a.data||"") || b.id.localeCompare(a.id));
+  $("dp_lista").innerHTML =
+   `<div class="card"><h2>Saldo em dólar restante</h2><table>
+      <tr><td>Saldo em dólar (aba Câmbio)</td><td>${U(c.usdTot)}</td></tr>
+      <tr><td>(−) Despesas na viagem</td><td>${U(totU)} · ${R(totB)}</td></tr>
+      <tr><td>Restante</td><td><b>${U(rest)}</b>${cot>0 ? ` · ${R(rest*cot)}` : ""}</td></tr>
+    </table></div>
+    <div class="card"><h2>Por categoria</h2><table>
+      <tr><th>Categoria</th><th>US$</th><th>R$</th></tr>
+      ${DCATS.map(k => { const l = dsp.filter(d => d.cat===k); return `<tr><td>${k}</td><td>${U(soma2(l,"usd"))}</td><td>${R(soma2(l,"brl"))}</td></tr>`; }).join("")}
+      <tr><td><b>Total</b></td><td><b>${U(totU)}</b></td><td><b>${R(totB)}</b></td></tr>
+    </table></div>
+    <div class="card"><h2>Despesas lançadas</h2>
+      ${ord.length ? ord.map(d => `<div class="item" style="grid-template-columns:1fr auto">
+        <div>${esc(d.desc || d.cat)}<small class="vazio" style="display:block">${fmt(d.data).slice(0,5)} · ${esc(d.cat)}${d.manual ? " · cotação manual" : ""}</small>
+          <b>${M(d.valor,d.moeda)}</b> → ${U(d.usd)} → <b>${R(d.brl)}</b></div>
+        <button class="st" data-dd="${d.id}" aria-label="Excluir despesa">✕</button></div>`).join("") : `<p class="vazio">Nenhuma despesa lançada.</p>`}
+    </div>`;
+}
+
+$("dp_form").addEventListener("change", e => {
+  if (e.target.id === "dp_moeda") { dp.moeda = e.target.value; despAuto(false); }
+});
+$("dp_form").addEventListener("input", e => {
+  if (e.target.id === "dp_tu" || e.target.id === "dp_tb") dp.man = true;
+  if (["dp_val","dp_tu","dp_tb"].includes(e.target.id)) despPrev();
+});
+
 function gastos(){
   $("gastos").innerHTML = estado.categorias.map(c =>
    `<section class="card">
@@ -336,10 +443,10 @@ function gastos(){
     </section>`).join("");
 }
 
-function tudo(){ salvar(); resumo(); gastos(); aportes(); dolar(); }
+function tudo(){ salvar(); resumo(); gastos(); aportes(); dolar(); despesas(); }
 
 function abas(a){
-  ["resumo","gastos","aportes","cambio","dados"].forEach(x => { $(x).hidden = x!==a; });
+  ["resumo","gastos","aportes","cambio","despesas","dados"].forEach(x => { $(x).hidden = x!==a; });
   document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("on", b.dataset.aba===a));
 }
 
@@ -371,6 +478,9 @@ document.addEventListener("click", e => {
   else if (d.ed) abrir(...d.ed.split("|"));
   else if (d.add) abrir(d.add);
   else if (b.id === "cv_add") addCv();
+  else if (b.id === "dp_add") addDesp();
+  else if (b.id === "dp_auto") despAuto(true);
+  else if (d.dd) { estado.despesas = estado.despesas.filter(x => x.id !== d.dd); tudo(); }
   else if (d.dc) { estado.conversoes = estado.conversoes.filter(x => x.id !== d.dc); tudo(); }
 });
 
@@ -432,6 +542,7 @@ $("sub").textContent = n>1 ? n+" dias para a saída" : n===1 ? "1 dia para a sa�
 
 tudo();
 conversor(); buscar();
+despForm(); despAuto(false);
 </script>
 </body>
 </html>
