@@ -1,120 +1,220 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Viagem Londres 2027</title>
-  <style>
-    :root {
-      --fundo: #eef2f5;
-      --texto: #14213d;
-      --azul: #0019a8;
-      --vermelho: #dc241f;
-      --suave: #5b6b7f;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --fundo: #0e1522;
-        --texto: #e8edf3;
-        --azul: #3d5afe;
-        --vermelho: #ff4d47;
-        --suave: #9aa8ba;
-      }
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 28px;
-      padding: 24px;
-      background: var(--fundo);
-      color: var(--texto);
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-      text-align: center;
-    }
-    h1 { margin: 0; font-size: 1.6rem; font-weight: 700; }
-    .sub { margin: 4px 0 0; color: var(--suave); }
-
-    /* Roundel: círculo vermelho com a barra azul, como o símbolo do metrô de Londres */
-    .roundel {
-      position: relative;
-      width: 230px;
-      height: 230px;
-      border: 20px solid var(--vermelho);
-      border-radius: 50%;
-    }
-    .dias {
-      position: absolute;
-      top: 22px;
-      left: 0;
-      right: 0;
-      font-size: 3.4rem;
-      font-weight: 800;
-      line-height: 1;
-    }
-    .barra {
-      position: absolute;
-      top: 50%;
-      left: -34px;
-      right: -34px;
-      transform: translateY(-50%);
-      padding: 10px 0;
-      background: var(--azul);
-      color: #fff;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
-    .datas { margin: 0; padding: 0; list-style: none; line-height: 1.9; }
-    .datas strong { display: inline-block; min-width: 92px; }
-    .status { color: var(--suave); font-size: 0.9rem; max-width: 32ch; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Viagem Londres 2027</title>
+<style>
+:root{--fundo:#eef2f5;--cartao:#fff;--texto:#14213d;--suave:#5b6b7f;--azul:#0019a8;--vermelho:#dc241f;--verde:#1a7f4b;--borda:#d5dde5}
+@media(prefers-color-scheme:dark){:root{--fundo:#0e1522;--cartao:#172033;--texto:#e8edf3;--suave:#9aa8ba;--azul:#3d5afe;--vermelho:#ff4d47;--borda:#2a3650}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.w{max-width:760px;margin:0 auto;padding:16px}
+header h1{margin:0;font-size:1.4rem}
+header p{margin:2px 0 0;color:var(--suave)}
+nav{display:flex;gap:4px;margin:16px 0;border-bottom:1px solid var(--borda)}
+nav button{flex:1;padding:12px 4px;background:none;border:0;border-bottom:3px solid transparent;color:var(--suave);font:inherit;font-weight:600;cursor:pointer}
+nav button.on{color:var(--texto);border-color:var(--vermelho)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.card{background:var(--cartao);border:1px solid var(--borda);border-radius:10px;padding:14px;margin-bottom:12px}
+.cards .card{margin:0}
+.card small{display:block;color:var(--suave)}
+.card b{font-size:1.25rem}
+.trilho{height:10px;border-radius:5px;background:var(--borda);overflow:hidden;margin-top:8px}
+.trilho i{display:block;height:100%;background:var(--azul)}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+th,td{padding:8px 4px;text-align:right;border-bottom:1px solid var(--borda);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{color:var(--suave);font-weight:600;font-size:.85rem}
+.topo{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2{font-size:1.05rem;margin:0}
+.item{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--borda);margin-top:8px}
+.nome{text-align:left;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
+.nome small{display:block;color:var(--suave)}
+.st{border:1px solid var(--borda);background:none;color:var(--suave);border-radius:14px;padding:4px 10px;font:inherit;font-size:.85rem;cursor:pointer}
+.st.pago{background:var(--verde);border-color:var(--verde);color:#fff}
+.btn{background:var(--azul);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;cursor:pointer}
+.btn.sec{background:none;color:var(--texto);border:1px solid var(--borda)}
+.btn.perigo{background:var(--vermelho)}
+.add{margin-top:8px;width:100%;background:none;color:var(--azul);border:1px dashed var(--azul);border-radius:8px;padding:9px;font:inherit;cursor:pointer}
+dialog{border:1px solid var(--borda);border-radius:12px;background:var(--cartao);color:var(--texto);width:min(92vw,420px);padding:18px}
+dialog label{display:block;margin-top:10px;font-size:.9rem;color:var(--suave)}
+dialog input,dialog select{width:100%;padding:9px;margin-top:4px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo);color:var(--texto);font:inherit}
+.acoes{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.vazio{color:var(--suave)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
+[hidden]{display:none!important}
+</style>
 </head>
 <body>
+<div class="w">
   <header>
     <h1>Viagem Londres 2027</h1>
-    <p class="sub">Lucas e Emily · Fevereiro 2027</p>
+    <p id="sub"></p>
   </header>
+  <nav id="abas">
+    <button data-aba="resumo" class="on">Resumo</button>
+    <button data-aba="gastos">Gastos</button>
+    <button data-aba="dados">Dados</button>
+  </nav>
+  <main>
+    <div id="resumo"></div>
+    <div id="gastos" hidden></div>
+    <div id="dados" hidden>
+      <div class="card">
+        <h2>Backup e importação</h2>
+        <p class="vazio">Os dados ficam guardados neste navegador. Exporte um backup de vez em quando e use Importar para carregar os dados em outro aparelho.</p>
+        <div class="acoes">
+          <button class="btn" id="exp">Exportar backup</button>
+          <button class="btn sec" id="imp">Importar arquivo</button>
+          <button class="btn perigo" id="lim">Apagar tudo</button>
+        </div>
+        <input type="file" id="arq" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </main>
+</div>
 
-  <div class="roundel" role="img" aria-label="Contagem regressiva para a viagem">
-    <div class="dias" id="dias">--</div>
-    <div class="barra" id="legenda">dias para a saída</div>
+<dialog id="dlg">
+  <h2 id="dt">Item</h2>
+  <label>Nome<input id="f_nome"></label>
+  <label>Quantidade<input id="f_qtd" type="number" step="any" inputmode="decimal"></label>
+  <label>Valor unitário (R$)<input id="f_valor" type="number" step="any" inputmode="decimal"></label>
+  <label>Pessoas<input id="f_pax" type="number" step="1" inputmode="numeric"></label>
+  <label>Total fixo em R$ (opcional, substitui o cálculo)<input id="f_fixo" type="number" step="any" inputmode="decimal"></label>
+  <label>Observação<input id="f_obs"></label>
+  <label>Status<select id="f_pago"><option value="0">Pendente</option><option value="1">Pago</option></select></label>
+  <div class="acoes">
+    <button class="btn" id="sal">Salvar</button>
+    <button class="btn sec" id="can">Cancelar</button>
+    <button class="btn perigo" id="exc">Excluir</button>
   </div>
+</dialog>
 
-  <ul class="datas">
-    <li><strong>Saída</strong> 06/02/2027</li>
-    <li><strong>Chegada</strong> 07/02/2027</li>
-    <li><strong>Retorno</strong> 13/02/2027</li>
-  </ul>
+<script>
+const $ = id => document.getElementById(id);
+const CHAVE = "viagem-londres-v1";
+const NOMES = ["✈️ Passagem principal","🚌 Trecho Curitiba ⇄ São Paulo","🏨 Hospedagem","🎫 Atrações","🍽️ Alimentação","🚇 Transporte local","🛡️ Seguro viagem","📦 Outros gastos"];
+const vazio = () => ({categorias: NOMES.map((n,i) => ({id:"c"+i, nome:n, itens:[]}))});
 
-  <p class="status">Página publicada com sucesso. Em breve, aqui ficam os gastos, a arrecadação e o roteiro.</p>
+function carregar(){
+  try { const t = localStorage.getItem(CHAVE); if (t) return JSON.parse(t); } catch(e) {}
+  return vazio();
+}
+function salvar(){ try { localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch(e) {} }
 
-  <script>
-    // Conta quantos dias faltam até a saída (06/02/2027).
-    // No JavaScript, os meses começam em 0: fevereiro = 1.
-    const saida = new Date(2027, 1, 6);
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+let estado = carregar(), edit = null;
 
-    const msPorDia = 24 * 60 * 60 * 1000;
-    const faltam = Math.round((saida - hoje) / msPorDia);
+const R = v => Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+// Total de um item: quantidade x valor x pessoas (ou o total fixo, se existir)
+const total = i => (i.totalFixo!=null && i.totalFixo!=="") ? Number(i.totalFixo) : (+i.qtd||0)*(+i.valor||0)*(+i.pax||1);
+const soma = (c,p) => c.itens.filter(i => p===undefined || !!i.pago===p).reduce((s,i) => s+total(i), 0);
+const todos = p => estado.categorias.reduce((s,c) => s+soma(c,p), 0);
 
-    const elDias = document.getElementById("dias");
-    const elLegenda = document.getElementById("legenda");
+function resumo(){
+  const T=todos(), P=todos(true), D=T-P, pc=T?Math.round(P/T*100):0;
+  $("resumo").innerHTML =
+   `<div class="cards">
+      <div class="card"><small>Total estimado</small><b>${R(T)}</b></div>
+      <div class="card"><small>Já pago</small><b>${R(P)}</b></div>
+      <div class="card"><small>Pendente</small><b>${R(D)}</b></div>
+    </div>
+    <div class="card"><div class="topo"><h2>Pagamentos concluídos</h2><b>${pc}%</b></div><div class="trilho"><i style="width:${pc}%"></i></div></div>
+    <div class="card"><h2>Por categoria</h2><div style="overflow-x:auto"><table>
+      <tr><th>Categoria</th><th>Total</th><th>Pago</th><th>Pendente</th></tr>
+      ${estado.categorias.map(c => `<tr><td>${esc(c.nome)}</td><td>${R(soma(c))}</td><td>${R(soma(c,true))}</td><td>${R(soma(c,false))}</td></tr>`).join("")}
+    </table></div></div>`;
+}
 
-    if (faltam > 1) {
-      elDias.textContent = faltam;
-      elLegenda.textContent = "dias para a saída";
-    } else if (faltam === 1) {
-      elDias.textContent = "1";
-      elLegenda.textContent = "dia para a saída";
-    } else {
-      elDias.textContent = "✈";
-      elLegenda.textContent = "Boa viagem!";
-    }
-  </script>
+function gastos(){
+  $("gastos").innerHTML = estado.categorias.map(c =>
+   `<section class="card">
+      <div class="topo"><h2>${esc(c.nome)}</h2><span>${R(soma(c))}</span></div>
+      ${c.itens.length ? c.itens.map(i =>
+        `<div class="item">
+          <button class="nome" data-ed="${c.id}|${i.id}">${esc(i.nome)}<small>${esc(i.obs)}</small></button>
+          <span>${R(total(i))}</span>
+          <button class="st ${i.pago?"pago":""}" data-st="${c.id}|${i.id}">${i.pago?"Pago":"Pendente"}</button>
+        </div>`).join("") : `<p class="vazio">Nenhum item ainda.</p>`}
+      <button class="add" data-add="${c.id}">+ Adicionar item</button>
+    </section>`).join("");
+}
+
+function tudo(){ salvar(); resumo(); gastos(); }
+
+function abas(a){
+  ["resumo","gastos","dados"].forEach(x => { $(x).hidden = x!==a; });
+  document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("on", b.dataset.aba===a));
+}
+
+function abrir(cid, iid){
+  const c = estado.categorias.find(x => x.id===cid);
+  const it = iid ? c.itens.find(x => x.id===iid) : null;
+  edit = {c, it};
+  $("dt").textContent = it ? "Editar item" : "Novo item em " + c.nome;
+  $("f_nome").value = it ? it.nome : "";
+  $("f_qtd").value = it ? it.qtd : 1;
+  $("f_valor").value = it ? it.valor : "";
+  $("f_pax").value = it ? it.pax : 2;
+  $("f_fixo").value = it && it.totalFixo!=null ? it.totalFixo : "";
+  $("f_obs").value = it ? (it.obs||"") : "";
+  $("f_pago").value = it && it.pago ? "1" : "0";
+  $("exc").hidden = !it;
+  $("dlg").showModal();
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const d = b.dataset;
+  if (d.aba) abas(d.aba);
+  else if (d.st) {
+    const [c,i] = d.st.split("|");
+    const it = estado.categorias.find(x => x.id===c).itens.find(x => x.id===i);
+    it.pago = !it.pago; tudo();
+  }
+  else if (d.ed) abrir(...d.ed.split("|"));
+  else if (d.add) abrir(d.add);
+});
+
+$("sal").onclick = () => {
+  const n = $("f_nome").value.trim();
+  if (!n) { $("f_nome").focus(); return; }
+  const it = edit.it || {id:"i"+Date.now()};
+  Object.assign(it, {nome:n, qtd:+$("f_qtd").value||0, valor:+$("f_valor").value||0, pax:+$("f_pax").value||1, obs:$("f_obs").value.trim(), pago:$("f_pago").value==="1"});
+  const f = $("f_fixo").value;
+  if (f!=="") it.totalFixo = +f; else delete it.totalFixo;
+  if (!edit.it) edit.c.itens.push(it);
+  $("dlg").close(); tudo();
+};
+$("can").onclick = () => $("dlg").close();
+$("exc").onclick = () => {
+  if (confirm("Excluir este item?")) { edit.c.itens = edit.c.itens.filter(x => x!==edit.it); $("dlg").close(); tudo(); }
+};
+
+$("exp").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(estado,null,1)], {type:"application/json"}));
+  a.download = "dados-londres.json"; a.click();
+};
+$("imp").onclick = () => $("arq").click();
+$("arq").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try { const d = JSON.parse(r.result); if (!Array.isArray(d.categorias)) throw 0; estado = d; tudo(); abas("resumo"); }
+    catch(x) { alert("Arquivo inválido. Use um backup exportado por esta página."); }
+  };
+  r.readAsText(f); e.target.value = "";
+};
+$("lim").onclick = () => { if (confirm("Apagar todos os dados deste navegador?")) { estado = vazio(); tudo(); } };
+
+// Contagem regressiva até a saída (06/02/2027). Meses no JavaScript começam em 0.
+const h = new Date(); h.setHours(0,0,0,0);
+const n = Math.round((new Date(2027,1,6) - h) / 864e5);
+$("sub").textContent = n>1 ? n+" dias para a saída" : n===1 ? "1 dia para a saída" : "Boa viagem!";
+
+tudo();
+</script>
 </body>
 </html>
