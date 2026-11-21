@@ -44,6 +44,7 @@ dialog input,dialog select{width:100%;padding:9px;margin-top:4px;border:1px soli
 .vazio{color:var(--suave)}
 .cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:10px 0}
 .cfg label{font-size:.85rem;color:var(--suave)}
+.chk{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.9rem}
 .ap input{width:100%;min-width:80px;padding:6px;border:1px solid var(--borda);border-radius:6px;background:var(--fundo);color:var(--texto);font:inherit;text-align:right}
 .cfg input{width:100%;padding:8px;margin-top:4px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo);color:var(--texto);font:inherit}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
@@ -60,12 +61,14 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
     <button data-aba="resumo" class="on">Resumo</button>
     <button data-aba="gastos">Gastos</button>
     <button data-aba="aportes">Aportes</button>
+    <button data-aba="dolar">Dólar</button>
     <button data-aba="dados">Dados</button>
   </nav>
   <main>
     <div id="resumo"></div>
     <div id="gastos" hidden></div>
     <div id="aportes" hidden></div>
+    <div id="dolar" hidden></div>
     <div id="dados" hidden>
       <div class="card">
         <h2>Backup e importação</h2>
@@ -115,6 +118,7 @@ const MESES = [["Até Jul/2026",0],["Ago/2026",0],["Set/2026",0],["Out/2026",0],
 function norm(){
   estado.config = Object.assign({pessoas:2, cotacao:0, usd:0, ajuste:0, nome1:"Pessoa 1", nome2:"Pessoa 2"}, estado.config || {});
   delete estado.config.caixa; delete estado.config.meses;
+  if (!Array.isArray(estado.conversoes)) estado.conversoes = [];
   if (!Array.isArray(estado.aportes)) estado.aportes = MESES.map(([mes,f],k) => ({id:"a"+k, mes, lucas:0, emily:0, futuro:!!f}));
 }
 const U = v => Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"USD"});
@@ -130,11 +134,14 @@ const todos = p => estado.categorias.reduce((s,c) => s+soma(c,p), 0);
 function calc(){
   const T=todos(), P=todos(true), D=T-P, g=estado.config;
   const ar = estado.aportes.reduce((x,a) => x+(+a.lucas||0)+(+a.emily||0), 0);
-  const uso=P+g.ajuste, caixa=ar-uso, conv=g.usd*g.cotacao, disp=caixa+conv;
+  const nv = estado.conversoes.filter(v => !v.base);
+  const usdTot = g.usd + nv.reduce((x,v) => x+v.usd, 0);
+  const deb = nv.filter(v => v.caixa).reduce((x,v) => x+v.usd*v.cotacao, 0);
+  const uso=P+g.ajuste+deb, caixa=ar-uso, conv=usdTot*g.cotacao, disp=caixa+conv;
   const falta=Math.max(D-disp,0);
   const meses = estado.aportes.filter(a => a.futuro && !(+a.lucas||+a.emily)).length;
   const pm = meses ? falta/meses : 0, pp = g.pessoas ? pm/g.pessoas : 0;
-  return {T,P,D,g,ar,uso,caixa,conv,disp,falta,meses,pm,pp};
+  return {T,P,D,g,ar,uso,caixa,conv,disp,falta,meses,pm,pp,usdTot};
 }
 
 function resumo(){
@@ -149,7 +156,6 @@ function resumo(){
     <div class="card"><div class="topo"><h2>Pagamentos concluídos</h2><b>${pc}%</b></div><div class="trilho"><i style="width:${pc}%"></i></div></div>
     <div class="card"><h2>Saldo disponível em caixa</h2>
       <div class="cfg">
-        <label>Saldo em dólar (US$)<input type="number" step="any" inputmode="decimal" data-cfg="usd" value="${g.usd}"></label>
         <label>Cotação do dólar hoje (R$)<input type="number" step="any" inputmode="decimal" data-cfg="cotacao" value="${g.cotacao}"></label>
         <label>Ajuste do dólar (R$)<input type="number" step="any" inputmode="decimal" data-cfg="ajuste" value="${g.ajuste}"></label>
       </div>
@@ -157,7 +163,7 @@ function resumo(){
         <tr><td>Total arrecadado (aportes)</td><td>${R(c.ar)}</td></tr>
         <tr><td>(−) Já utilizado (pago + ajuste)</td><td>${R(c.uso)}</td></tr>
         <tr><td>Saldo em caixa (R$)</td><td><b>${R(c.caixa)}</b></td></tr>
-        <tr><td>Saldo em dólar (${U(g.usd)}) em R$</td><td>${R(c.conv)}</td></tr>
+        <tr><td>Saldo em dólar (${U(c.usdTot)}) em R$</td><td>${R(c.conv)}</td></tr>
         <tr><td>Saldo total disponível</td><td><b>${R(c.disp)}</b></td></tr>
       </table></div>
     <div class="card"><h2>Quanto falta juntar</h2>
@@ -195,6 +201,69 @@ function aportesTotais(){
   $("tl").textContent=R(L); $("te").textContent=R(E); $("tt").textContent=R(L+E);
 }
 
+const fmt = d => d ? d.split("-").reverse().join("/") : "—";
+
+function grafico(cv){
+  const L = [...cv].sort((a,b) => (a.data||"").localeCompare(b.data||""));
+  if (L.length < 2) return `<p class="vazio">Registre ao menos 2 compras para ver o gráfico.</p>`;
+  let su=0, sr=0;
+  const pts = L.map(x => { su+=x.usd; sr+=x.usd*x.cotacao; return {c:x.cotacao, m:sr/su, d:x.data}; });
+  const vals = pts.flatMap(p => [p.c,p.m]), mn = Math.min(...vals), mx = Math.max(...vals), pad = (mx-mn)||1;
+  const W=600, H=220, m=36, X = i => m+i*(W-2*m)/(pts.length-1), Y = v => H-m-(v-mn)/pad*(H-2*m);
+  const linha = k => pts.map((p,i) => X(i).toFixed(1)+","+Y(p[k]).toFixed(1)).join(" ");
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Cotação de cada compra e média acumulada">
+    <line x1="${m}" y1="${H-m}" x2="${W-m}" y2="${H-m}" stroke="var(--borda)"/>
+    <polyline points="${linha("c")}" fill="none" stroke="var(--azul)" stroke-width="2"/>
+    ${pts.map((p,i) => `<circle cx="${X(i)}" cy="${Y(p.c)}" r="4" fill="var(--azul)"/>`).join("")}
+    <polyline points="${linha("m")}" fill="none" stroke="var(--vermelho)" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="2" y="${Y(mx)+4}" font-size="11" fill="var(--suave)">${mx.toFixed(2)}</text>
+    <text x="2" y="${Y(mn)+4}" font-size="11" fill="var(--suave)">${mn.toFixed(2)}</text>
+    ${pts.map((p,i) => `<text x="${X(i)}" y="${H-10}" font-size="10" text-anchor="middle" fill="var(--suave)">${p.d ? fmt(p.d).slice(0,5) : i+1}</text>`).join("")}
+  </svg>
+  <p class="vazio"><span style="color:var(--azul)">●</span> cotação de cada compra &nbsp; <span style="color:var(--vermelho)">- - -</span> média acumulada</p>`;
+}
+
+function dolar(){
+  const g=estado.config, cv=estado.conversoes, c=calc();
+  const totU = cv.reduce((x,v) => x+v.usd, 0), totR = cv.reduce((x,v) => x+v.usd*v.cotacao, 0), med = totU ? totR/totU : 0;
+  const hoje = new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10);
+  $("dolar").innerHTML =
+   `<div class="card"><h2>Saldo em dólar</h2>
+      <div class="cfg"><label>Saldo base (US$)<input type="number" step="any" inputmode="decimal" data-cfg="usd" value="${g.usd}"></label></div>
+      <table>
+        <tr><td>Saldo base</td><td>${U(g.usd)}</td></tr>
+        <tr><td>(+) Compras novas</td><td>${U(c.usdTot-g.usd)}</td></tr>
+        <tr><td>Saldo atual</td><td><b>${U(c.usdTot)}</b></td></tr>
+      </table>
+      <p class="vazio">O saldo base já inclui as compras marcadas como "no saldo". Só as compras novas alteram o dólar e o caixa em reais.</p></div>
+    <div class="card"><h2>Registrar compra de dólar</h2>
+      <div class="cfg">
+        <label>Data<input type="date" id="cv_data" value="${hoje}"></label>
+        <label>Quantidade (US$)<input type="number" step="any" inputmode="decimal" id="cv_usd"></label>
+        <label>Cotação do dia (R$)<input type="number" step="any" inputmode="decimal" id="cv_cot"></label>
+      </div>
+      <label class="chk"><input type="checkbox" id="cv_caixa" checked> Pago com o saldo em reais (desconta do caixa)</label>
+      <div class="acoes"><button class="btn" id="cv_add">Registrar compra</button></div></div>
+    <div class="card"><h2>Compras registradas</h2>
+      ${cv.length ? `<div style="overflow-x:auto"><table>
+        <tr><th>Data</th><th>US$</th><th>Cotação</th><th>R$</th><th></th></tr>
+        ${cv.map(x => `<tr><td>${fmt(x.data)}${x.base ? ` <small class="vazio">(no saldo)</small>` : ""}</td><td>${U(x.usd)}</td><td>${R(x.cotacao)}</td><td>${R(x.usd*x.cotacao)}</td><td><button class="st" data-dc="${x.id}" aria-label="Excluir compra">✕</button></td></tr>`).join("")}
+      </table></div>
+      <table>
+        <tr><td>Total comprado</td><td>${U(totU)}</td></tr>
+        <tr><td>Total em reais</td><td>${R(totR)}</td></tr>
+        <tr><td>Cotação média</td><td><b>${R(med)}</b></td></tr>
+      </table>` : `<p class="vazio">Nenhuma compra registrada.</p>`}</div>
+    <div class="card"><h2>Cotação média das compras</h2>${grafico(cv)}</div>`;
+}
+
+function addCv(){
+  const u = +$("cv_usd").value, c = +$("cv_cot").value;
+  if (!(u>0 && c>0)) { alert("Informe a quantidade em dólar e a cotação."); return; }
+  estado.conversoes.push({id:"v"+Date.now(), data:$("cv_data").value, usd:u, cotacao:c, caixa:$("cv_caixa").checked, base:false});
+  tudo();
+}
+
 function gastos(){
   $("gastos").innerHTML = estado.categorias.map(c =>
    `<section class="card">
@@ -209,10 +278,10 @@ function gastos(){
     </section>`).join("");
 }
 
-function tudo(){ salvar(); resumo(); gastos(); aportes(); }
+function tudo(){ salvar(); resumo(); gastos(); aportes(); dolar(); }
 
 function abas(a){
-  ["resumo","gastos","aportes","dados"].forEach(x => { $(x).hidden = x!==a; });
+  ["resumo","gastos","aportes","dolar","dados"].forEach(x => { $(x).hidden = x!==a; });
   document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("on", b.dataset.aba===a));
 }
 
@@ -243,6 +312,8 @@ document.addEventListener("click", e => {
   }
   else if (d.ed) abrir(...d.ed.split("|"));
   else if (d.add) abrir(d.add);
+  else if (b.id === "cv_add") addCv();
+  else if (d.dc) { estado.conversoes = estado.conversoes.filter(x => x.id !== d.dc); tudo(); }
 });
 
 $("sal").onclick = () => {
@@ -271,7 +342,11 @@ $("arq").onchange = e => {
   const r = new FileReader();
   r.onload = () => {
     try { const d = JSON.parse(r.result); if (Array.isArray(d.categorias)) estado = d;
-      else if (Array.isArray(d.aportes)) { estado.aportes = d.aportes; estado.config = Object.assign(estado.config, d.config || {}); }
+      else if (d.aportes || d.conversoes) {
+        if (d.aportes) estado.aportes = d.aportes;
+        if (d.conversoes) estado.conversoes = d.conversoes;
+        estado.config = Object.assign(estado.config, d.config || {});
+      }
       else throw 0;
       norm(); tudo(); abas("resumo"); }
     catch(x) { alert("Arquivo inválido. Use um backup exportado por esta página."); }
