@@ -38,8 +38,8 @@ function isoDeRotulo(s){
 // Cria uma linha para cada mês do período; meses fora do período só saem se estiverem vazios
 function ajustarAportes(){
   const g = estado.config, alvo = mesesEntre(g.inicio, g.fim), por = new Map(estado.aportes.map(a => [a.mes, a]));
-  const novos = alvo.map(m => por.get(m) || {id:"a"+m, mes:m, lucas:0, emily:0});
-  estado.aportes.forEach(a => { if (!alvo.includes(a.mes) && ((+a.lucas||0)+(+a.emily||0)) > 0) novos.push(a); });
+  const novos = alvo.map(m => por.get(m) || {id:"a"+m, mes:m, v:Array(g.pessoas).fill(0)});
+  estado.aportes.forEach(a => { if (!alvo.includes(a.mes) && totA(a) > 0) novos.push(a); });
   estado.aportes = novos.sort((x,y) => x.mes.localeCompare(y.mes));
 }
 function periodo(k, val){
@@ -53,21 +53,37 @@ function periodo(k, val){
   g[k] = val; ajustarAportes(); tudo();
 }
 
+const totA = a => a.v.reduce((x,y) => x+(+y||0), 0);
 function norm(){
-  estado.config = Object.assign({pessoas:2, cotacao:0, usd:0, ajuste:0, nome1:"Pessoa 1", nome2:"Pessoa 2"}, estado.config || {});
-  delete estado.config.caixa; delete estado.config.meses;
+  const g = estado.config = Object.assign({pessoas:2, cotacao:0, usd:0, ajuste:0}, estado.config || {});
+  delete g.caixa; delete g.meses;
   if (!Array.isArray(estado.conversoes)) estado.conversoes = [];
   if (!Array.isArray(estado.despesas)) estado.despesas = [];
   if (!Array.isArray(estado.aportes)) estado.aportes = [];
+  g.pessoas = Math.max(1, Math.min(10, Math.round(+g.pessoas) || 2));
+  if (!Array.isArray(g.nomes)) g.nomes = [];
+  if (g.nome1) g.nomes[0] = g.nome1;
+  if (g.nome2) g.nomes[1] = g.nome2;
+  delete g.nome1; delete g.nome2;
+  for (let i = 0; i < g.pessoas; i++) if (!g.nomes[i]) g.nomes[i] = "Pessoa " + (i+1);
+  g.nomes.length = g.pessoas;
   estado.aportes.forEach(a => {
     if (!ehMes(a.mes)) { const iso = isoDeRotulo(a.mes); if (iso) { if (/^Até/i.test(a.mes)) a.rotulo = a.mes; a.mes = iso; } }
     delete a.futuro;
+    if (!Array.isArray(a.v)) { a.v = [a.lucas || 0, a.emily || 0]; delete a.lucas; delete a.emily; }
+    for (let i = 0; i < g.pessoas; i++) a.v[i] = +a.v[i] || 0;
+    a.v.length = g.pessoas;
   });
-  const g = estado.config, ms = estado.aportes.map(a => a.mes).filter(ehMes).sort();
+  const ms = estado.aportes.map(a => a.mes).filter(ehMes).sort();
   if (!ehMes(g.inicio)) g.inicio = ms[0] || mesAtual();
   if (!ehMes(g.fim)) g.fim = ms.length ? ms[ms.length-1] : (viagem ? viagem.saida.slice(0,7) : g.inicio);
   if (g.fim < g.inicio) g.fim = g.inicio;
   ajustarAportes();
+}
+function definirPessoas(n){
+  const g = estado.config; n = Math.max(1, Math.min(10, Math.round(n) || 1));
+  if (n < g.pessoas && estado.aportes.some(a => a.v.slice(n).some(x => x > 0)) && !confirm("Reduzir o número de pessoas apaga os aportes das pessoas removidas. Continuar?")) { tudo(); return; }
+  g.pessoas = n; norm(); tudo();
 }
 const U = v => Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"USD"});
 norm();
@@ -81,13 +97,13 @@ const todos = p => estado.categorias.reduce((s,c) => s+soma(c,p), 0);
 
 function calc(){
   const T=todos(), P=todos(true), D=T-P, g=estado.config;
-  const ar = estado.aportes.reduce((x,a) => x+(+a.lucas||0)+(+a.emily||0), 0);
+  const ar = estado.aportes.reduce((x,a) => x+totA(a), 0);
   const nv = estado.conversoes.filter(v => !v.base);
   const usdTot = g.usd + nv.reduce((x,v) => x+v.usd, 0);
   const deb = nv.filter(v => v.caixa).reduce((x,v) => x+v.usd*v.cotacao, 0);
   const uso=P+g.ajuste+deb, caixa=ar-uso, conv=usdTot*g.cotacao, disp=caixa+conv;
   const falta=Math.max(D-disp,0);
-  const mA = mesAtual(), meses = estado.aportes.filter(a => ehMes(a.mes) && a.mes >= mA && a.mes <= g.fim && !(+a.lucas||+a.emily)).length;
+  const mA = mesAtual(), meses = estado.aportes.filter(a => ehMes(a.mes) && a.mes >= mA && a.mes <= g.fim && !totA(a)).length;
   const pm = meses ? falta/meses : 0, pp = g.pessoas ? pm/g.pessoas : 0;
   return {T,P,D,g,ar,uso,caixa,conv,disp,falta,meses,pm,pp,usdTot};
 }
@@ -131,31 +147,29 @@ function resumo(){
 }
 
 function aportes(){
-  const g=estado.config;
-  const campo = (a,k) => `<td><input type="number" step="any" inputmode="decimal" data-ap="${a.id}|${k}" value="${a[k]||""}"></td>`;
+  const g = estado.config;
+  const campo = (a,i) => `<td><input type="number" step="any" inputmode="decimal" data-ap="${a.id}|${i}" value="${a.v[i] || ""}"></td>`;
   $("aportes").innerHTML =
-   `<div class="card"><h2>Período de aportes</h2>
+   `<div class="card"><h2>Período e pessoas</h2>
       <div class="cfg">
         <label>Primeiro mês<input type="month" data-cp="inicio" value="${g.inicio}"></label>
         <label>Último mês<input type="month" data-cp="fim" value="${g.fim}"></label>
+        <label>Número de pessoas<input type="number" min="1" max="10" step="1" inputmode="numeric" data-cfg="pessoas" value="${g.pessoas}"></label>
       </div>
-      <div class="cfg">
-        <label>Nome da pessoa 1<input data-cp="nome1" value="${esc(g.nome1)}"></label>
-        <label>Nome da pessoa 2<input data-cp="nome2" value="${esc(g.nome2)}"></label>
-      </div>
-      <p class="vazio">Cada mês do período vira uma linha. Se você encurtar o período, meses que já têm valor não são apagados.</p></div>
+      <div class="cfg">${g.nomes.map((n,i) => `<label>Nome da pessoa ${i+1}<input data-nome="${i}" value="${esc(n)}"></label>`).join("")}</div>
+      <p class="vazio">Cada mês do período vira uma linha e cada pessoa vira uma coluna. Se você encurtar o período, meses que já têm valor não são apagados.</p></div>
     <div class="card"><h2>Aportes mensais</h2>
-    <p class="vazio">Informe quanto cada pessoa depositou em cada mês. Editar um mês não altera os outros. Meses a partir do mês atual, ainda sem valor, contam como meses restantes.</p>
-    <div style="overflow-x:auto"><table class="ap">
-      <tr><th>Mês</th><th>${esc(g.nome1)} (R$)</th><th>${esc(g.nome2)} (R$)</th><th>Total</th></tr>
-      ${estado.aportes.map(a => `<tr><td>${esc(rm(a))}</td>${campo(a,"lucas")}${campo(a,"emily")}<td id="at_${a.id}">${R((+a.lucas||0)+(+a.emily||0))}</td></tr>`).join("")}
-      <tr><td><b>Total</b></td><td id="tl"></td><td id="te"></td><td id="tt"></td></tr>
-    </table></div></div>`;
+      <p class="vazio">Informe quanto cada pessoa depositou em cada mês. Editar um mês não altera os outros. Meses a partir do mês atual, ainda sem valor, contam como meses restantes.</p>
+      <div style="overflow-x:auto"><table class="ap">
+        <tr><th>Mês</th>${g.nomes.map(n => `<th>${esc(n)} (R$)</th>`).join("")}<th>Total</th></tr>
+        ${estado.aportes.map(a => `<tr><td>${esc(rm(a))}</td>${g.nomes.map((n,i) => campo(a,i)).join("")}<td id="at_${a.id}">${R(totA(a))}</td></tr>`).join("")}
+        <tr><td><b>Total</b></td>${g.nomes.map((n,i) => `<td id="tc_${i}"></td>`).join("")}<td id="tt"></td></tr>
+      </table></div></div>`;
   aportesTotais();
 }
 function aportesTotais(){
-  const L = estado.aportes.reduce((x,a) => x+(+a.lucas||0), 0), E = estado.aportes.reduce((x,a) => x+(+a.emily||0), 0);
-  $("tl").textContent=R(L); $("te").textContent=R(E); $("tt").textContent=R(L+E);
+  estado.config.nomes.forEach((n,i) => { $("tc_"+i).textContent = R(estado.aportes.reduce((x,a) => x+(+a.v[i]||0), 0)); });
+  $("tt").textContent = R(estado.aportes.reduce((x,a) => x+totA(a), 0));
 }
 
 const fmt = d => d ? d.split("-").reverse().join("/") : "—";
@@ -483,13 +497,15 @@ $("lim").onclick = () => { if (confirm("Apagar todos os dados desta viagem?")) {
 
 document.addEventListener("change", e => {
   const k = e.target.dataset.cfg, ap = e.target.dataset.ap, v = +e.target.value || 0;
-  if (k) { estado.config[k] = k==="ajuste" ? v : Math.max(v,0); tudo(); }
+  if (k === "pessoas") definirPessoas(v);
+  else if (k) { estado.config[k] = k==="ajuste" ? v : Math.max(v,0); tudo(); }
   else if (e.target.dataset.cp) periodo(e.target.dataset.cp, e.target.value);
+  else if (e.target.dataset.nome !== undefined) { const i = +e.target.dataset.nome; estado.config.nomes[i] = e.target.value.trim() || "Pessoa " + (i+1); tudo(); }
   else if (ap) {
-    const [id,campo] = ap.split("|");
+    const [id,idx] = ap.split("|");
     const a = estado.aportes.find(x => x.id===id);
-    a[campo] = Math.max(v,0);
-    $("at_"+id).textContent = R((+a.lucas||0)+(+a.emily||0));
+    a.v[+idx] = Math.max(v,0);
+    $("at_"+id).textContent = R(totA(a));
     aportesTotais(); salvar(); resumo();
   }
 });
