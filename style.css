@@ -49,3 +49,4 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .vcard small{color:var(--suave)}
 .vcard.novo{justify-content:center;border-style:dashed;min-height:200px;color:var(--suave)}
 dialog input[type=color]{height:42px;padding:2px}
+dialog input[type=range]{padding:0}

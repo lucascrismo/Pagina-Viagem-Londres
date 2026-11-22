@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Minhas viagens</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
 <div class="w">
@@ -51,7 +51,14 @@
   <label>Destino<input id="dv_dest"></label>
   <label>Data de saída<input type="date" id="dv_saida"></label>
   <label>Moeda local<select id="dv_moeda"></select></label>
-  <label>Forma do emblema<select id="dv_forma"><option value="roundel">Anel e barra (metrô de Londres)</option><option value="circulo">Círculo cheio</option><option value="anel">Anel</option></select></label>
+  <label>Forma do emblema<select id="dv_forma"><option value="roundel">Anel e barra (metrô de Londres)</option><option value="circulo">Círculo cheio</option><option value="anel">Anel</option><option value="imagem">Imagem (círculo)</option><option value="imagemq">Imagem (quadrado arredondado)</option></select></label>
+  <div id="dv_img_box" hidden>
+    <label>Imagem (foto ou desenho)<input type="file" id="dv_img" accept="image/*"></label>
+    <label>Zoom<input type="range" id="dv_zoom" min="1" max="3" step="0.05" value="1"></label>
+    <label>Posição horizontal<input type="range" id="dv_ox" min="0" max="100" value="50"></label>
+    <label>Posição vertical<input type="range" id="dv_oy" min="0" max="100" value="50"></label>
+    <p class="vazio">A imagem é reduzida automaticamente. A cor 1 vira a borda do emblema.</p>
+  </div>
   <div class="cfg"><label>Cor 1<input type="color" id="dv_c1"></label><label>Cor 2<input type="color" id="dv_c2"></label></div>
   <div class="acoes"><button class="btn sec" data-pre="londres">Londres</button><button class="btn sec" data-pre="paris">Paris</button><button class="btn sec" data-pre="novayork">Nova York</button><button class="btn sec" data-pre="orlando">Orlando</button></div>
   <div id="dv_prev" style="max-width:180px;margin:12px auto"></div>
@@ -74,6 +81,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

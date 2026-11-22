@@ -15,7 +15,7 @@ function lerLoja(){
   return {viagens:[{id:"v1", nome:"Londres 2027", destino:"Londres", saida:"2027-02-06", moeda:"GBP", forma:"roundel", cor1:"#dc241f", cor2:"#0019a8", dados:carregar()}]};
 }
 let loja = lerLoja(), viagem = null;
-function salvar(){ if (viagem) viagem.dados = estado; try { localStorage.setItem(CHAVE2, JSON.stringify(loja)); } catch(e) {} }
+function salvar(){ if (viagem) viagem.dados = estado; try { localStorage.setItem(CHAVE2, JSON.stringify(loja)); } catch(e) { alert("Não foi possível salvar: o armazenamento do navegador está cheio. Remova imagens grandes ou exporte um backup."); } }
 
 let estado = vazio(), edit = null;
 // Configurações da meta: pessoas, meses restantes e saldo em caixa
@@ -451,7 +451,21 @@ function contagem(saida){
 }
 const txtDias = n => n>1 ? n+" dias para a saída" : n===1 ? "1 dia para a saída" : "Boa viagem!";
 
+const uid = () => "g" + Math.random().toString(36).slice(2,8);
+function emblemaImg(v, n){
+  const i = v.img, S = 220, k = Math.max(S/i.w, S/i.h) * (v.zoom || 1), W = i.w*k, H = i.h*k;
+  const x = (S-W) * ((v.ox ?? 50)/100), y = (S-H) * ((v.oy ?? 50)/100);
+  const id = uid(), circ = v.forma === "imagem";
+  const forma = circ ? `<circle cx="110" cy="110" r="100"/>` : `<rect x="10" y="10" width="200" height="200" rx="30"/>`;
+  const borda = circ ? `<circle cx="110" cy="110" r="100" fill="none" stroke="${v.cor1}" stroke-width="8"/>` : `<rect x="10" y="10" width="200" height="200" rx="30" fill="none" stroke="${v.cor1}" stroke-width="8"/>`;
+  return `<svg viewBox="0 0 220 220" role="img" aria-label="${txtDias(n)}"><defs><clipPath id="${id}">${forma}</clipPath><linearGradient id="${id}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".78"/></linearGradient></defs>
+    <g clip-path="url(#${id})"><image href="${i.src}" x="${x}" y="${y}" width="${W}" height="${H}"/><rect x="0" y="95" width="220" height="125" fill="url(#${id}g)"/></g>${borda}
+    <text x="110" y="162" text-anchor="middle" font-size="46" font-weight="800" fill="#fff">${n>0 ? n : "✈"}</text>
+    <text x="110" y="188" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">${n>1 ? "dias para a saída" : n===1 ? "dia para a saída" : "Boa viagem!"}</text></svg>`;
+}
+
 function emblema(v, n){
+  if (v.forma && v.forma.startsWith("imagem") && v.img) return emblemaImg(v, n);
   const num = n>0 ? n : "✈", c1 = v.cor1, c2 = v.cor2, leg = n>1 ? "dias" : n===1 ? "dia" : "";
   let f;
   if (v.forma === "roundel") f = `<circle cx="110" cy="110" r="92" fill="none" stroke="${c1}" stroke-width="20"/><text x="110" y="98" text-anchor="middle" font-size="58" font-weight="800" fill="var(--texto)">${num}</text><rect x="4" y="106" width="212" height="36" fill="${c2}"/><text x="110" y="131" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">${n>1 ? "dias para a saída" : n===1 ? "dia para a saída" : "Boa viagem!"}</text>`;
@@ -479,20 +493,36 @@ function abrirViagem(id){
   abas("resumo"); tudo(); conversor(); buscar(); despForm(); despAuto(false);
 }
 
-let editV = null;
+let editV = null, dvImg = null;
 function editarViagem(id){
   editV = id ? loja.viagens.find(x => x.id === id) : null;
   const v = editV || {nome:"", destino:"", saida:"", moeda:"USD", forma:"circulo", cor1:"#0039a6", cor2:"#ffffff"};
   $("dv_t").textContent = editV ? "Editar viagem" : "Nova viagem";
   $("dv_nome").value = v.nome; $("dv_dest").value = v.destino; $("dv_saida").value = v.saida; $("dv_moeda").value = v.moeda;
   $("dv_forma").value = v.forma; $("dv_c1").value = v.cor1; $("dv_c2").value = v.cor2;
+  dvImg = v.img || null; $("dv_zoom").value = v.zoom || 1; $("dv_ox").value = v.ox ?? 50; $("dv_oy").value = v.oy ?? 50; $("dv_img").value = "";
   $("dv_exc").hidden = !editV; dvPrev(); $("dv").showModal();
 }
-const dvLer = () => ({nome:$("dv_nome").value.trim(), destino:$("dv_dest").value.trim(), saida:$("dv_saida").value, moeda:$("dv_moeda").value, forma:$("dv_forma").value, cor1:$("dv_c1").value, cor2:$("dv_c2").value});
-function dvPrev(){ const v = dvLer(); $("dv_prev").innerHTML = emblema(v, v.saida ? contagem(v.saida) : 0); }
+const dvLer = () => ({nome:$("dv_nome").value.trim(), destino:$("dv_dest").value.trim(), saida:$("dv_saida").value, moeda:$("dv_moeda").value, forma:$("dv_forma").value, cor1:$("dv_c1").value, cor2:$("dv_c2").value, img:dvImg, zoom:+$("dv_zoom").value, ox:+$("dv_ox").value, oy:+$("dv_oy").value});
+function dvPrev(){ const v = dvLer(); $("dv_img_box").hidden = !v.forma.startsWith("imagem"); $("dv_prev").innerHTML = emblema(v, v.saida ? contagem(v.saida) : 0); }
 
 $("dv_moeda").innerHTML = MOEDAS.map(m => `<option>${m}</option>`).join("");
 $("dv").addEventListener("input", dvPrev);
+$("dv_img").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    const im = new Image();
+    im.onload = () => {
+      const k = Math.min(1, 480/Math.max(im.width, im.height)), w = Math.round(im.width*k), h = Math.round(im.height*k);
+      const c = document.createElement("canvas"); c.width = w; c.height = h;
+      c.getContext("2d").drawImage(im, 0, 0, w, h);
+      dvImg = {src:c.toDataURL("image/webp", 0.85), w, h}; dvPrev();
+    };
+    im.src = r.result;
+  };
+  r.readAsDataURL(f);
+};
 $("dv").addEventListener("click", e => {
   const p = PRE[e.target.dataset.pre]; if (!p) return;
   $("dv_forma").value = p[0]; $("dv_c1").value = p[1]; $("dv_c2").value = p[2]; dvPrev();
@@ -501,6 +531,7 @@ $("dv_can").onclick = () => $("dv").close();
 $("dv_sal").onclick = () => {
   const v = dvLer();
   if (!v.nome || !v.saida) { alert("Informe o nome e a data de saída."); return; }
+  if (v.forma.startsWith("imagem") && !v.img) { alert("Escolha uma imagem ou outra forma de emblema."); return; }
   const dentro = viagem && editV && viagem.id === editV.id;
   if (editV) Object.assign(editV, v); else loja.viagens.push({id:"v"+Date.now(), ...v, dados:vazio()});
   salvar(); $("dv").close();
