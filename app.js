@@ -20,12 +20,54 @@ function salvar(){ if (viagem) viagem.dados = estado; try { localStorage.setItem
 let estado = vazio(), edit = null;
 // Configurações da meta: pessoas, meses restantes e saldo em caixa
 const MESES = [["Até Jul/2026",0],["Ago/2026",0],["Set/2026",0],["Out/2026",0],["Nov/2026",0],["Dez/2026",1],["Jan/2027",1],["Fev/2027",1]];
+// ---- Aportes por mês (AAAA-MM) ----
+const MN = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const ehMes = m => /^\d{4}-\d{2}$/.test(m);
+const rotuloMes = iso => MN[+iso.split("-")[1]-1] + "/" + iso.split("-")[0];
+const rm = a => a.rotulo || (ehMes(a.mes) ? rotuloMes(a.mes) : a.mes);
+const mesAtual = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"); };
+function mesesEntre(ini, fim){
+  const out = []; let [a,m] = ini.split("-").map(Number); const [fa,fm] = fim.split("-").map(Number);
+  while ((a < fa || (a === fa && m <= fm)) && out.length <= 120) { out.push(a + "-" + String(m).padStart(2,"0")); m++; if (m > 12) { m = 1; a++; } }
+  return out;
+}
+function isoDeRotulo(s){
+  const r = /(Jan|Fev|Mar|Abr|Mai|Jun|Jul|Ago|Set|Out|Nov|Dez)\/(\d{4})/.exec(String(s));
+  return r ? r[2] + "-" + String(MN.indexOf(r[1])+1).padStart(2,"0") : null;
+}
+// Cria uma linha para cada mês do período; meses fora do período só saem se estiverem vazios
+function ajustarAportes(){
+  const g = estado.config, alvo = mesesEntre(g.inicio, g.fim), por = new Map(estado.aportes.map(a => [a.mes, a]));
+  const novos = alvo.map(m => por.get(m) || {id:"a"+m, mes:m, lucas:0, emily:0});
+  estado.aportes.forEach(a => { if (!alvo.includes(a.mes) && ((+a.lucas||0)+(+a.emily||0)) > 0) novos.push(a); });
+  estado.aportes = novos.sort((x,y) => x.mes.localeCompare(y.mes));
+}
+function periodo(k, val){
+  const g = estado.config;
+  if (k === "inicio" || k === "fim") {
+    if (!ehMes(val)) return;
+    const n = Object.assign({}, g, {[k]: val});
+    if (n.inicio > n.fim) { alert("O último mês não pode ser anterior ao primeiro."); aportes(); return; }
+    if (mesesEntre(n.inicio, n.fim).length > 120) { alert("Período muito longo (máximo de 120 meses)."); aportes(); return; }
+  }
+  g[k] = val; ajustarAportes(); tudo();
+}
+
 function norm(){
   estado.config = Object.assign({pessoas:2, cotacao:0, usd:0, ajuste:0, nome1:"Pessoa 1", nome2:"Pessoa 2"}, estado.config || {});
   delete estado.config.caixa; delete estado.config.meses;
   if (!Array.isArray(estado.conversoes)) estado.conversoes = [];
   if (!Array.isArray(estado.despesas)) estado.despesas = [];
-  if (!Array.isArray(estado.aportes)) estado.aportes = MESES.map(([mes,f],k) => ({id:"a"+k, mes, lucas:0, emily:0, futuro:!!f}));
+  if (!Array.isArray(estado.aportes)) estado.aportes = [];
+  estado.aportes.forEach(a => {
+    if (!ehMes(a.mes)) { const iso = isoDeRotulo(a.mes); if (iso) { if (/^Até/i.test(a.mes)) a.rotulo = a.mes; a.mes = iso; } }
+    delete a.futuro;
+  });
+  const g = estado.config, ms = estado.aportes.map(a => a.mes).filter(ehMes).sort();
+  if (!ehMes(g.inicio)) g.inicio = ms[0] || mesAtual();
+  if (!ehMes(g.fim)) g.fim = ms.length ? ms[ms.length-1] : (viagem ? viagem.saida.slice(0,7) : g.inicio);
+  if (g.fim < g.inicio) g.fim = g.inicio;
+  ajustarAportes();
 }
 const U = v => Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"USD"});
 norm();
@@ -45,7 +87,7 @@ function calc(){
   const deb = nv.filter(v => v.caixa).reduce((x,v) => x+v.usd*v.cotacao, 0);
   const uso=P+g.ajuste+deb, caixa=ar-uso, conv=usdTot*g.cotacao, disp=caixa+conv;
   const falta=Math.max(D-disp,0);
-  const meses = estado.aportes.filter(a => a.futuro && !(+a.lucas||+a.emily)).length;
+  const mA = mesAtual(), meses = estado.aportes.filter(a => ehMes(a.mes) && a.mes >= mA && a.mes <= g.fim && !(+a.lucas||+a.emily)).length;
   const pm = meses ? falta/meses : 0, pp = g.pessoas ? pm/g.pessoas : 0;
   return {T,P,D,g,ar,uso,caixa,conv,disp,falta,meses,pm,pp,usdTot};
 }
@@ -92,11 +134,21 @@ function aportes(){
   const g=estado.config;
   const campo = (a,k) => `<td><input type="number" step="any" inputmode="decimal" data-ap="${a.id}|${k}" value="${a[k]||""}"></td>`;
   $("aportes").innerHTML =
-   `<div class="card"><h2>Aportes mensais</h2>
-    <p class="vazio">Informe quanto cada pessoa depositou em cada mês. Editar um mês não altera os outros. Meses futuros sem valor contam como meses restantes.</p>
+   `<div class="card"><h2>Período de aportes</h2>
+      <div class="cfg">
+        <label>Primeiro mês<input type="month" data-cp="inicio" value="${g.inicio}"></label>
+        <label>Último mês<input type="month" data-cp="fim" value="${g.fim}"></label>
+      </div>
+      <div class="cfg">
+        <label>Nome da pessoa 1<input data-cp="nome1" value="${esc(g.nome1)}"></label>
+        <label>Nome da pessoa 2<input data-cp="nome2" value="${esc(g.nome2)}"></label>
+      </div>
+      <p class="vazio">Cada mês do período vira uma linha. Se você encurtar o período, meses que já têm valor não são apagados.</p></div>
+    <div class="card"><h2>Aportes mensais</h2>
+    <p class="vazio">Informe quanto cada pessoa depositou em cada mês. Editar um mês não altera os outros. Meses a partir do mês atual, ainda sem valor, contam como meses restantes.</p>
     <div style="overflow-x:auto"><table class="ap">
       <tr><th>Mês</th><th>${esc(g.nome1)} (R$)</th><th>${esc(g.nome2)} (R$)</th><th>Total</th></tr>
-      ${estado.aportes.map(a => `<tr><td>${esc(a.mes)}</td>${campo(a,"lucas")}${campo(a,"emily")}<td id="at_${a.id}">${R((+a.lucas||0)+(+a.emily||0))}</td></tr>`).join("")}
+      ${estado.aportes.map(a => `<tr><td>${esc(rm(a))}</td>${campo(a,"lucas")}${campo(a,"emily")}<td id="at_${a.id}">${R((+a.lucas||0)+(+a.emily||0))}</td></tr>`).join("")}
       <tr><td><b>Total</b></td><td id="tl"></td><td id="te"></td><td id="tt"></td></tr>
     </table></div></div>`;
   aportesTotais();
@@ -432,6 +484,7 @@ $("lim").onclick = () => { if (confirm("Apagar todos os dados desta viagem?")) {
 document.addEventListener("change", e => {
   const k = e.target.dataset.cfg, ap = e.target.dataset.ap, v = +e.target.value || 0;
   if (k) { estado.config[k] = k==="ajuste" ? v : Math.max(v,0); tudo(); }
+  else if (e.target.dataset.cp) periodo(e.target.dataset.cp, e.target.value);
   else if (ap) {
     const [id,campo] = ap.split("|");
     const a = estado.aportes.find(x => x.id===id);
