@@ -1,0 +1,51 @@
+:root{--fundo:#eef2f5;--cartao:#fff;--texto:#14213d;--suave:#5b6b7f;--azul:#0019a8;--vermelho:#dc241f;--verde:#1a7f4b;--borda:#d5dde5}
+@media(prefers-color-scheme:dark){:root{--fundo:#0e1522;--cartao:#172033;--texto:#e8edf3;--suave:#9aa8ba;--azul:#3d5afe;--vermelho:#ff4d47;--borda:#2a3650}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.w{max-width:760px;margin:0 auto;padding:16px}
+header h1{margin:0;font-size:1.4rem}
+header p{margin:2px 0 0;color:var(--suave)}
+nav{display:flex;overflow-x:auto;gap:4px;margin:16px 0;border-bottom:1px solid var(--borda)}
+nav button{flex:1 0 auto;white-space:nowrap;padding:12px 10px;background:none;border:0;border-bottom:3px solid transparent;color:var(--suave);font:inherit;font-weight:600;cursor:pointer}
+nav button.on{color:var(--texto);border-color:var(--vermelho)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.card{background:var(--cartao);border:1px solid var(--borda);border-radius:10px;padding:14px;margin-bottom:12px}
+.cards .card{margin:0}
+.card small{display:block;color:var(--suave)}
+.card b{font-size:1.25rem}
+.trilho{height:10px;border-radius:5px;background:var(--borda);overflow:hidden;margin-top:8px}
+.trilho i{display:block;height:100%;background:var(--azul)}
+table{width:100%;border-collapse:collapse;margin-top:6px}
+th,td{padding:8px 4px;text-align:right;border-bottom:1px solid var(--borda);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{color:var(--suave);font-weight:600;font-size:.85rem}
+.topo{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2{font-size:1.05rem;margin:0}
+.item{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--borda);margin-top:8px}
+.nome{text-align:left;background:none;border:0;color:inherit;font:inherit;cursor:pointer;padding:0}
+.nome small{display:block;color:var(--suave)}
+.st{border:1px solid var(--borda);background:none;color:var(--suave);border-radius:14px;padding:4px 10px;font:inherit;font-size:.85rem;cursor:pointer}
+.st.pago{background:var(--verde);border-color:var(--verde);color:#fff}
+.btn{background:var(--azul);color:#fff;border:0;border-radius:8px;padding:9px 14px;font:inherit;cursor:pointer}
+.btn.sec{background:none;color:var(--texto);border:1px solid var(--borda)}
+.btn.perigo{background:var(--vermelho)}
+.add{margin-top:8px;width:100%;background:none;color:var(--azul);border:1px dashed var(--azul);border-radius:8px;padding:9px;font:inherit;cursor:pointer}
+dialog{border:1px solid var(--borda);border-radius:12px;background:var(--cartao);color:var(--texto);width:min(92vw,420px);padding:18px}
+dialog label{display:block;margin-top:10px;font-size:.9rem;color:var(--suave)}
+dialog input,dialog select{width:100%;padding:9px;margin-top:4px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo);color:var(--texto);font:inherit}
+.acoes{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.vazio{color:var(--suave)}
+.cfg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:10px 0}
+.cfg label{font-size:.85rem;color:var(--suave)}
+.chk{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.9rem}
+.cfg select,.man{width:100%;padding:8px;margin-top:4px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo);color:var(--texto);font:inherit}
+.ap input{width:100%;min-width:80px;padding:6px;border:1px solid var(--borda);border-radius:6px;background:var(--fundo);color:var(--texto);font:inherit;text-align:right}
+.cfg input{width:100%;padding:8px;margin-top:4px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo);color:var(--texto);font:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--azul);outline-offset:2px}
+[hidden]{display:none!important}
+.viagens{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:20px}
+.vcard{background:var(--cartao);border:1px solid var(--borda);border-radius:14px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;color:inherit;font:inherit}
+.vcard svg{width:100%;max-width:200px;height:auto}
+.vcard small{color:var(--suave)}
+.vcard.novo{justify-content:center;border-style:dashed;min-height:200px;color:var(--suave)}
+dialog input[type=color]{height:42px;padding:2px}
