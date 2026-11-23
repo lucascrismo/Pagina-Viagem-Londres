@@ -405,7 +405,7 @@ $("dp_form").addEventListener("input", e => {
 
 // ---- Roteiro ----
 const RES = {pend:"Falta reservar", passe:"Reservar no passe", ok:"Reservado"};
-let rfiltro = "", rpAberto = false;
+let rfiltro = "", rfp = "", rpAberto = false;
 const DSEM = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
 const lk = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">link</a>`);
 const chaveHora = i => { const m = /(\d{1,2}):(\d{2})/.exec(i.hora || ""); return m ? m[1].padStart(2,"0") + ":" + m[2] : "99:99"; };
@@ -418,27 +418,30 @@ function roteiro(){
   const pagos = dias.flatMap(d => d.itens).filter(i => +i.preco > 0);
   const inc = (i,p) => !!(i.pass && i.pass[p.id]);
   const pe = r.passes.find(p => p.id === r.passeEscolhido) || null;
-  const chipsDe = i => +i.preco > 0 ? (pe ? (inc(i,pe) ? [pe] : []) : r.passes) : [];
+  const chipsDe = i => pe ? (inc(i,pe) ? [pe] : []) : r.passes.filter(p => +i.preco > 0 || (i.pass && p.id in i.pass));
   const totalAv = soma(pagos), foraPe = pe ? soma(pagos.filter(i => !inc(i,pe))) : 0;
   const mel = r.passes.map(p => ({p, dif: soma(pagos.filter(i => inc(i,p))) - p.preco})).sort((a,b) => b.dif - a.dif)[0];
   const its = dias.flatMap(d => d.itens), cont = k => its.filter(i => i.res === k).length;
+  if (rfp && !r.passes.some(p => p.id === rfp)) rfp = "";
+  const filt = rfiltro || rfp, pfs = pe ? [pe] : r.passes, passeF = r.passes.find(p => p.id === rfp);
+  const okF = i => (!rfiltro || i.res === rfiltro) && (!passeF || inc(i, passeF));
   const mm = (r.mapa || "").match(/google\.[a-z.]+\/maps\/d\/.*[?&]mid=([^&]+)/);
   const mapa = !r.mapa ? `<p class="vazio">Nenhum mapa vinculado.</p>`
     : mm ? `<iframe class="mapa" loading="lazy" allowfullscreen src="https://www.google.com/maps/d/embed?mid=${encodeURIComponent(mm[1])}"></iframe>`
     : `<a class="btn" href="${esc(r.mapa)}" target="_blank" rel="noopener">Abrir mapa do roteiro</a>`;
   $("roteiro").innerHTML =
-   `<div class="card"><div class="topo"><h2>Reservas</h2>${rfiltro ? `<button class="st" data-rf="">Mostrar todos</button>` : ""}</div>
-      <div class="chips" style="margin-top:8px">${Object.keys(RES).map(k => `<button class="chip rs-${k} ${rfiltro === k ? "sel" : ""}" data-rf="${k}">${RES[k]}: ${cont(k)}</button>`).join("")}</div>
-      <p class="vazio" style="margin:8px 0 0">Toque em um status para filtrar o roteiro.</p></div>
+   `<div class="card"><div class="topo"><h2>Filtrar roteiro</h2>${filt ? `<button class="st" data-rf="">Mostrar todos</button>` : ""}</div>
+      <div class="chips" style="margin-top:8px">${Object.keys(RES).map(k => `<button class="chip rs-${k} ${rfiltro === k ? "sel" : ""}" data-rf="${k}">${RES[k]}: ${cont(k)}</button>`).join("")}${pfs.map(p => `<button class="chip rs-pass ${rfp === p.id ? "sel" : ""}" data-rfp="${p.id}">No ${esc(p.nome)}: ${its.filter(i => inc(i,p)).length}</button>`).join("")}</div>
+      <p class="vazio" style="margin:8px 0 0">Toque para filtrar. Você pode combinar um status de reserva com um passe.</p></div>
     <div class="card"><div class="topo"><h2>Mapa</h2><button class="st" data-rmapa="1">${r.mapa ? "Trocar link" : "Vincular mapa"}</button></div>${mapa}</div>
-    ${dias.filter(d => !rfiltro || d.itens.some(i => i.res === rfiltro)).map(d => `<section class="card">
+    ${dias.filter(d => !filt || d.itens.some(okF)).map(d => `<section class="card">
       <div class="topo"><h2>${rotuloDia(d)}${d.titulo ? " – " + esc(d.titulo) : ""}</h2><button class="st" data-rdia="${d.id}" aria-label="Editar dia">✎</button></div>
-      ${[...d.itens].filter(i => !rfiltro || i.res === rfiltro).sort((a,b) => chaveHora(a).localeCompare(chaveHora(b))).map(i => `<div class="item ${i.res ? "r-" + i.res : ""}">
+      ${[...d.itens].filter(okF).sort((a,b) => chaveHora(a).localeCompare(chaveHora(b))).map(i => `<div class="item ${i.res ? "r-" + i.res : ""}">
         <div><button class="nome" data-ritem="${d.id}|${i.id}"><span class="hora">${esc(i.hora||"")}</span>${esc(i.nome)}</button>${i.res ? ` <span class="chip rs-${i.res}">${RES[i.res]}</span>` : ""}
           <small class="vazio" style="display:block">${esc(i.duracao||"")}${i.duracao && i.obs ? " · " : ""}${lk(i.obs||"")}</small>
-          ${chipsDe(i).length ? `<div class="chips">${chipsDe(i).map(p => `<span class="chip ${inc(i,p) ? "ok" : ""}">${esc(p.nome)} ${inc(i,p) ? "☑" : "☐"}</span>`).join("")}</div>` : ""}</div>
+          ${chipsDe(i).length ? `<div class="chips">${chipsDe(i).map(p => `<button class="chip ${inc(i,p) ? "ok" : ""}" data-pc="${d.id}|${i.id}|${p.id}">${esc(p.nome)} ${inc(i,p) ? "☑" : "☐"}</button>`).join("")}</div>` : ""}</div>
         <span>${+i.preco <= 0 ? "Gratuito" : pe && inc(i,pe) ? `<small class="vazio">no passe</small>` : L(tot(i))}</span></div>`).join("")}
-      <div class="topo" style="margin-top:8px"><button class="st" data-radd="${d.id}">+ Item</button>${rfiltro ? "" : `<span>${pe ? "À parte" : "Subtotal"}: <b>${L(soma(pe ? d.itens.filter(i => !inc(i,pe)) : d.itens))}</b></span>`}</div>
+      <div class="topo" style="margin-top:8px"><button class="st" data-radd="${d.id}">+ Item</button>${filt ? "" : `<span>${pe ? "À parte" : "Subtotal"}: <b>${L(soma(pe ? d.itens.filter(i => !inc(i,pe)) : d.itens))}</b></span>`}</div>
     </section>`).join("")}
     <button class="add" data-rnd="1" style="margin-bottom:12px">+ Adicionar dia</button>
     <div class="card"><h2>Ingressos e passes</h2>
@@ -466,14 +469,18 @@ function abrirItem(did, iid){
   $("di_t").textContent = it ? "Editar item" : "Novo item em " + rotuloDia(d);
   $("di_hora").value = it ? (it.hora||"") : ""; $("di_nome").value = it ? it.nome : ""; $("di_dur").value = it ? (it.duracao||"") : "";
   $("di_preco").value = it && it.preco ? it.preco : ""; $("di_obs").value = it ? (it.obs||"") : "";
-  $("di_passes").innerHTML = estado.roteiro.passes.map(p => `<label class="chk"><input type="checkbox" data-pid="${p.id}" ${it && it.pass && it.pass[p.id] ? "checked" : ""}> Incluso no ${esc(p.nome)}</label>`).join("");
+  $("di_passes").innerHTML = estado.roteiro.passes.length
+    ? `<p class="vazio" style="margin:12px 0 0">Passes turísticos</p>` + estado.roteiro.passes.map(p => {
+        const v = it && it.pass && p.id in it.pass ? (it.pass[p.id] ? "1" : "0") : "";
+        return `<label>${esc(p.nome)}<select data-pid="${p.id}"><option value="">Não se aplica</option><option value="1" ${v === "1" ? "selected" : ""}>Incluso no passe</option><option value="0" ${v === "0" ? "selected" : ""}>Não incluso</option></select></label>`; }).join("")
+    : `<p class="vazio">Cadastre um passe no quadro de passes para marcar a inclusão.</p>`;
   $("di_res").value = it ? (it.res || "") : "";
   $("di_exc").hidden = !it; $("di").showModal();
 }
 $("di_sal").onclick = () => {
   const nome = $("di_nome").value.trim(); if (!nome) { $("di_nome").focus(); return; }
   const it = ri.it || {id:"r" + Date.now()}, pass = {};
-  $("di_passes").querySelectorAll("input").forEach(c => { pass[c.dataset.pid] = c.checked; });
+  $("di_passes").querySelectorAll("select").forEach(c => { if (c.value !== "") pass[c.dataset.pid] = c.value === "1"; });
   Object.assign(it, {hora:$("di_hora").value.trim(), nome, duracao:$("di_dur").value.trim(), preco:+$("di_preco").value || 0, obs:$("di_obs").value.trim(), pass, res:$("di_res").value});
   if (!ri.it) ri.d.itens.push(it);
   $("di").close(); tudo();
@@ -579,7 +586,12 @@ document.addEventListener("click", e => {
   else if (d.rpe) editarPasse(d.rpe);
   else if (d.rpx !== undefined) { estado.roteiro.passeEscolhido = estado.roteiro.passeEscolhido === d.rpx ? "" : d.rpx; tudo(); }
   else if (d.rptroca) { rpAberto = true; roteiro(); }
-  else if (d.rf !== undefined) { rfiltro = d.rf === rfiltro ? "" : d.rf; roteiro(); }
+  else if (d.rf !== undefined) { if (d.rf === "") { rfiltro = ""; rfp = ""; } else rfiltro = d.rf === rfiltro ? "" : d.rf; roteiro(); }
+  else if (d.rfp !== undefined) { rfp = d.rfp === rfp ? "" : d.rfp; roteiro(); }
+  else if (d.pc) {
+    const [di,ii,pi] = d.pc.split("|"), it = estado.roteiro.dias.find(x => x.id === di).itens.find(x => x.id === ii);
+    it.pass = it.pass || {}; it.pass[pi] = !it.pass[pi]; tudo();
+  }
   else if (d.nv) editarViagem(null);
   else if (d.volta) home();
   else if (d.ev) editarViagem(viagem.id);
