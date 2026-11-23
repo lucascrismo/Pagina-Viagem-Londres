@@ -69,3 +69,4 @@ button.chip{background:none;font:inherit;font-size:.75rem;cursor:pointer}
 .chip.rs-pend{border-color:var(--rpend);color:var(--rpend)}
 .chip.rs-passe{border-color:var(--rpasse);color:var(--rpasse)}
 .chip.sel{background:color-mix(in srgb,currentColor 14%,transparent);font-weight:700}
+summary{cursor:pointer;margin-top:10px}

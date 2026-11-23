@@ -63,6 +63,7 @@ function norm(){
   if (!Array.isArray(estado.roteiro.dias)) estado.roteiro.dias = [];
   if (!Array.isArray(estado.roteiro.passes)) estado.roteiro.passes = [];
   if (typeof estado.roteiro.mapa !== "string") estado.roteiro.mapa = "";
+  if (typeof estado.roteiro.passeEscolhido !== "string") estado.roteiro.passeEscolhido = "";
   estado.roteiro.dias.forEach(d => { if (!Array.isArray(d.itens)) d.itens = []; });
   if (!Array.isArray(estado.aportes)) estado.aportes = [];
   g.pessoas = Math.max(1, Math.min(10, Math.round(+g.pessoas) || 2));
@@ -404,7 +405,7 @@ $("dp_form").addEventListener("input", e => {
 
 // ---- Roteiro ----
 const RES = {pend:"Falta reservar", passe:"Reservar no passe", ok:"Reservado"};
-let rfiltro = "";
+let rfiltro = "", rpAberto = false;
 const DSEM = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
 const lk = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">link</a>`);
 const chaveHora = i => { const m = /(\d{1,2}):(\d{2})/.exec(i.hora || ""); return m ? m[1].padStart(2,"0") + ":" + m[2] : "99:99"; };
@@ -416,6 +417,10 @@ function roteiro(){
   const dias = [...r.dias].sort((a,b) => a.data.localeCompare(b.data));
   const pagos = dias.flatMap(d => d.itens).filter(i => +i.preco > 0);
   const inc = (i,p) => !!(i.pass && i.pass[p.id]);
+  const pe = r.passes.find(p => p.id === r.passeEscolhido) || null;
+  const chipsDe = i => +i.preco > 0 ? (pe ? (inc(i,pe) ? [pe] : []) : r.passes) : [];
+  const totalAv = soma(pagos), foraPe = pe ? soma(pagos.filter(i => !inc(i,pe))) : 0;
+  const mel = r.passes.map(p => ({p, dif: soma(pagos.filter(i => inc(i,p))) - p.preco})).sort((a,b) => b.dif - a.dif)[0];
   const its = dias.flatMap(d => d.itens), cont = k => its.filter(i => i.res === k).length;
   const mm = (r.mapa || "").match(/google\.[a-z.]+\/maps\/d\/.*[?&]mid=([^&]+)/);
   const mapa = !r.mapa ? `<p class="vazio">Nenhum mapa vinculado.</p>`
@@ -431,22 +436,27 @@ function roteiro(){
       ${[...d.itens].filter(i => !rfiltro || i.res === rfiltro).sort((a,b) => chaveHora(a).localeCompare(chaveHora(b))).map(i => `<div class="item ${i.res ? "r-" + i.res : ""}">
         <div><button class="nome" data-ritem="${d.id}|${i.id}"><span class="hora">${esc(i.hora||"")}</span>${esc(i.nome)}</button>${i.res ? ` <span class="chip rs-${i.res}">${RES[i.res]}</span>` : ""}
           <small class="vazio" style="display:block">${esc(i.duracao||"")}${i.duracao && i.obs ? " · " : ""}${lk(i.obs||"")}</small>
-          ${+i.preco > 0 && r.passes.length ? `<div class="chips">${r.passes.map(p => `<span class="chip ${inc(i,p) ? "ok" : ""}">${esc(p.nome)} ${inc(i,p) ? "☑" : "☐"}</span>`).join("")}</div>` : ""}</div>
-        <span>${+i.preco > 0 ? L(tot(i)) : "Gratuito"}</span></div>`).join("")}
-      <div class="topo" style="margin-top:8px"><button class="st" data-radd="${d.id}">+ Item</button>${rfiltro ? "" : `<span>Subtotal: <b>${L(soma(d.itens))}</b></span>`}</div>
+          ${chipsDe(i).length ? `<div class="chips">${chipsDe(i).map(p => `<span class="chip ${inc(i,p) ? "ok" : ""}">${esc(p.nome)} ${inc(i,p) ? "☑" : "☐"}</span>`).join("")}</div>` : ""}</div>
+        <span>${+i.preco <= 0 ? "Gratuito" : pe && inc(i,pe) ? `<small class="vazio">no passe</small>` : L(tot(i))}</span></div>`).join("")}
+      <div class="topo" style="margin-top:8px"><button class="st" data-radd="${d.id}">+ Item</button>${rfiltro ? "" : `<span>${pe ? "À parte" : "Subtotal"}: <b>${L(soma(pe ? d.itens.filter(i => !inc(i,pe)) : d.itens))}</b></span>`}</div>
     </section>`).join("")}
     <button class="add" data-rnd="1" style="margin-bottom:12px">+ Adicionar dia</button>
-    <div class="card"><h2>Ingressos x passes</h2>
-      <table>
-        <tr><td>Total de ingressos pagos (${n} ${n===1 ? "pessoa" : "pessoas"})</td><td>${L(soma(pagos))}</td></tr>
-        <tr><td>Atrações fora de qualquer passe</td><td>${L(soma(pagos.filter(i => !r.passes.some(p => inc(i,p)))))}</td></tr>
-      </table>
-      ${r.passes.length ? `<div style="overflow-x:auto"><table><tr><th>Passe</th><th>Elegíveis</th><th>Preço</th><th>Resultado</th></tr>
-        ${r.passes.map(p => { const el = soma(pagos.filter(i => inc(i,p))), dif = el - p.preco;
-          return `<tr><td><button class="nome" data-rpe="${p.id}">${esc(p.nome)}</button></td><td>${L(el)}</td><td>${L(p.preco)}</td><td>${dif > 0 ? "Passe economiza " + L(dif) : "Avulso compensa " + L(-dif)}</td></tr>`; }).join("")}
-      </table></div>` : ""}
-      <button class="add" data-rpa="1">+ Adicionar passe</button>
-      <p class="vazio">Informe o preço do passe para o grupo todo, nos dias necessários. Toque no nome do passe para editar ou excluir.</p></div>`;
+    <div class="card"><h2>Ingressos e passes</h2>
+      ${pe ? `<table>
+        <tr><td>Passe escolhido: <b>${esc(pe.nome)}</b> <button class="st" data-rptroca="1">Trocar</button></td><td>${L(pe.preco)}</td></tr>
+        <tr><td>Atrações fora do passe</td><td>${L(foraPe)}</td></tr>
+        <tr><td><b>Custo total estimado</b></td><td><b>${L(pe.preco + foraPe)}</b></td></tr>
+        <tr><td>Se tudo fosse avulso</td><td>${L(totalAv)}</td></tr>
+        <tr><td>Economia com o passe</td><td><b>${L(totalAv - pe.preco - foraPe)}</b></td></tr>
+      </table>` : `<p style="margin:8px 0">${mel ? `Melhor opção hoje: <b>${esc(mel.p.nome)}</b> (${mel.dif > 0 ? "economiza " + L(mel.dif) + " frente ao avulso" : "o avulso compensa mais"}).` : "Adicione um passe para comparar com os ingressos avulsos."}</p>`}
+      <details id="rp_det" ${rpAberto || !pe ? "open" : ""}><summary class="vazio">Comparar passes</summary>
+        ${r.passes.length ? `<div style="overflow-x:auto"><table><tr><th>Passe</th><th>Elegíveis</th><th>Preço</th><th>Resultado</th><th></th></tr>
+          ${r.passes.map(p => { const el = soma(pagos.filter(i => inc(i,p))), dif = el - p.preco, esco = r.passeEscolhido === p.id;
+            return `<tr><td><button class="nome" data-rpe="${p.id}">${esc(p.nome)}</button></td><td>${L(el)}</td><td>${L(p.preco)}</td><td>${dif > 0 ? "Passe economiza " + L(dif) : "Avulso compensa " + L(-dif)}</td><td><button class="st ${esco ? "pago" : ""}" data-rpx="${p.id}">${esco ? "Escolhido" : "Escolher"}</button></td></tr>`; }).join("")}
+        </table></div>` : ""}
+        <button class="add" data-rpa="1">+ Adicionar passe</button>
+        <p class="vazio">O preço do passe é para o grupo todo, nos dias necessários. Toque no nome do passe para editar ou excluir. Toque em "Escolhido" para desfazer a escolha.</p>
+      </details></div>`;
 }
 
 let ri = null, rdSel = null;
@@ -487,6 +497,8 @@ $("dy_sal").onclick = () => {
 };
 $("dy_can").onclick = () => $("dy").close();
 $("dy_exc").onclick = () => { if (confirm("Excluir este dia e todos os itens dele?")) { estado.roteiro.dias = estado.roteiro.dias.filter(x => x !== rdSel); $("dy").close(); tudo(); } };
+
+$("roteiro").addEventListener("toggle", e => { if (e.target.id === "rp_det") rpAberto = e.target.open; }, true);
 
 function editarMapa(){
   const u = prompt("Cole o link do mapa (Google Earth, Meu Mapas ou outro):", estado.roteiro.mapa || "");
@@ -565,6 +577,8 @@ document.addEventListener("click", e => {
   else if (d.radd) abrirItem(d.radd);
   else if (d.rpa) novoPasse();
   else if (d.rpe) editarPasse(d.rpe);
+  else if (d.rpx !== undefined) { estado.roteiro.passeEscolhido = estado.roteiro.passeEscolhido === d.rpx ? "" : d.rpx; tudo(); }
+  else if (d.rptroca) { rpAberto = true; roteiro(); }
   else if (d.rf !== undefined) { rfiltro = d.rf === rfiltro ? "" : d.rf; roteiro(); }
   else if (d.nv) editarViagem(null);
   else if (d.volta) home();
