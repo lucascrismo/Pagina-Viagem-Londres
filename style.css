@@ -59,3 +59,13 @@ dialog input[type=range]{padding:0}
 a{color:var(--azul)}
 a.btn{display:inline-block;text-decoration:none;color:#fff;margin-top:8px}
 dialog textarea{width:100%;padding:9px;margin-top:4px;border:1px solid var(--borda);border-radius:8px;background:var(--fundo);color:var(--texto);font:inherit}
+
+:root{--rok:#1a7f4b;--rpend:#b87900;--rpasse:#1769d1}
+@media(prefers-color-scheme:dark){:root{--rok:#3ecf8e;--rpend:#f0b429;--rpasse:#5aa2ff}}
+.r-ok{--rc:var(--rok)}.r-pend{--rc:var(--rpend)}.r-passe{--rc:var(--rpasse)}
+.item.r-ok,.item.r-pend,.item.r-passe{padding-left:10px;border-left:4px solid var(--rc);background:color-mix(in srgb,var(--rc) 9%,transparent)}
+button.chip{background:none;font:inherit;font-size:.75rem;cursor:pointer}
+.chip.rs-ok{border-color:var(--rok);color:var(--rok)}
+.chip.rs-pend{border-color:var(--rpend);color:var(--rpend)}
+.chip.rs-passe{border-color:var(--rpasse);color:var(--rpasse)}
+.chip.sel{background:color-mix(in srgb,currentColor 14%,transparent);font-weight:700}

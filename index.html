@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Minhas viagens</title>
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 <div class="w">
@@ -74,6 +74,7 @@
   <label>Duração<input id="di_dur" placeholder="Ex.: 1h30"></label>
   <label>Preço individual (moeda local; vazio = gratuito)<input type="number" step="any" inputmode="decimal" id="di_preco"></label>
   <div id="di_passes"></div>
+  <label>Reserva<select id="di_res"><option value="">Sem reserva necessária</option><option value="pend">Falta reservar (à parte)</option><option value="passe">Falta reservar (dentro do passe)</option><option value="ok">Reservado, tudo certo</option></select></label>
   <label>Observação (links viram botões)<textarea id="di_obs" rows="3"></textarea></label>
   <div class="acoes"><button class="btn" id="di_sal">Salvar</button><button class="btn sec" id="di_can">Cancelar</button><button class="btn perigo" id="di_exc">Excluir</button></div>
 </dialog>
@@ -101,6 +102,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=7"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>
