@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Minhas viagens</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div class="w">
@@ -18,6 +18,7 @@
   <nav id="abas">
     <button data-aba="resumo" class="on">Resumo</button>
     <button data-aba="gastos">Gastos</button>
+    <button data-aba="roteiro">Roteiro</button>
     <button data-aba="aportes">Aportes</button>
     <button data-aba="cambio">Câmbio</button>
     <button data-aba="despesas">Despesas</button>
@@ -26,6 +27,7 @@
   <main>
     <div id="resumo"></div>
     <div id="gastos" hidden></div>
+    <div id="roteiro" hidden></div>
     <div id="aportes" hidden></div>
     <div id="cambio" hidden><div id="conv"></div><div id="dolar"></div></div>
     <div id="despesas" hidden><div id="dp_form"></div><div id="dp_lista"></div></div>
@@ -65,6 +67,24 @@
   <div class="acoes"><button class="btn" id="dv_sal">Salvar</button><button class="btn sec" id="dv_can">Cancelar</button><button class="btn perigo" id="dv_exc">Excluir viagem</button></div>
 </dialog>
 
+<dialog id="di">
+  <h2 id="di_t">Item</h2>
+  <label>Horário<input id="di_hora" placeholder="Ex.: 09:20–11:30"></label>
+  <label>Atração / atividade<input id="di_nome"></label>
+  <label>Duração<input id="di_dur" placeholder="Ex.: 1h30"></label>
+  <label>Preço individual (moeda local; vazio = gratuito)<input type="number" step="any" inputmode="decimal" id="di_preco"></label>
+  <div id="di_passes"></div>
+  <label>Observação (links viram botões)<textarea id="di_obs" rows="3"></textarea></label>
+  <div class="acoes"><button class="btn" id="di_sal">Salvar</button><button class="btn sec" id="di_can">Cancelar</button><button class="btn perigo" id="di_exc">Excluir</button></div>
+</dialog>
+
+<dialog id="dy">
+  <h2 id="dy_t">Dia</h2>
+  <label>Data<input type="date" id="dy_data"></label>
+  <label>Título<input id="dy_tit" placeholder="Ex.: Westminster + Harrods"></label>
+  <div class="acoes"><button class="btn" id="dy_sal">Salvar</button><button class="btn sec" id="dy_can">Cancelar</button><button class="btn perigo" id="dy_exc">Excluir dia</button></div>
+</dialog>
+
 <dialog id="dlg">
   <h2 id="dt">Item</h2>
   <label>Nome<input id="f_nome"></label>
@@ -81,6 +101,6 @@
   </div>
 </dialog>
 
-<script src="app.js?v=6"></script>
+<script src="app.js?v=7"></script>
 </body>
 </html>

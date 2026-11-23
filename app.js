@@ -59,6 +59,11 @@ function norm(){
   delete g.caixa; delete g.meses;
   if (!Array.isArray(estado.conversoes)) estado.conversoes = [];
   if (!Array.isArray(estado.despesas)) estado.despesas = [];
+  if (!estado.roteiro || typeof estado.roteiro !== "object") estado.roteiro = {};
+  if (!Array.isArray(estado.roteiro.dias)) estado.roteiro.dias = [];
+  if (!Array.isArray(estado.roteiro.passes)) estado.roteiro.passes = [];
+  if (typeof estado.roteiro.mapa !== "string") estado.roteiro.mapa = "";
+  estado.roteiro.dias.forEach(d => { if (!Array.isArray(d.itens)) d.itens = []; });
   if (!Array.isArray(estado.aportes)) estado.aportes = [];
   g.pessoas = Math.max(1, Math.min(10, Math.round(+g.pessoas) || 2));
   if (!Array.isArray(g.nomes)) g.nomes = [];
@@ -397,6 +402,103 @@ $("dp_form").addEventListener("input", e => {
   if (["dp_val","dp_tu","dp_tb"].includes(e.target.id)) despPrev();
 });
 
+// ---- Roteiro ----
+const DSEM = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"];
+const lk = t => esc(t).replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">link</a>`);
+const chaveHora = i => { const m = /(\d{1,2}):(\d{2})/.exec(i.hora || ""); return m ? m[1].padStart(2,"0") + ":" + m[2] : "99:99"; };
+const rotuloDia = d => { const [a,m,x] = d.data.split("-").map(Number); return DSEM[new Date(a,m-1,x).getDay()] + " " + String(x).padStart(2,"0") + "/" + String(m).padStart(2,"0"); };
+
+function roteiro(){
+  const r = estado.roteiro, n = estado.config.pessoas, mo = viagem ? viagem.moeda : "GBP";
+  const L = v => M(v, mo), tot = i => (+i.preco||0) * n, soma = l => l.reduce((x,i) => x+tot(i), 0);
+  const dias = [...r.dias].sort((a,b) => a.data.localeCompare(b.data));
+  const pagos = dias.flatMap(d => d.itens).filter(i => +i.preco > 0);
+  const inc = (i,p) => !!(i.pass && i.pass[p.id]);
+  const mm = (r.mapa || "").match(/google\.[a-z.]+\/maps\/d\/.*[?&]mid=([^&]+)/);
+  const mapa = !r.mapa ? `<p class="vazio">Nenhum mapa vinculado.</p>`
+    : mm ? `<iframe class="mapa" loading="lazy" allowfullscreen src="https://www.google.com/maps/d/embed?mid=${encodeURIComponent(mm[1])}"></iframe>`
+    : `<a class="btn" href="${esc(r.mapa)}" target="_blank" rel="noopener">Abrir mapa do roteiro</a>`;
+  $("roteiro").innerHTML =
+   `<div class="card"><div class="topo"><h2>Mapa</h2><button class="st" data-rmapa="1">${r.mapa ? "Trocar link" : "Vincular mapa"}</button></div>${mapa}</div>
+    ${dias.map(d => `<section class="card">
+      <div class="topo"><h2>${rotuloDia(d)}${d.titulo ? " – " + esc(d.titulo) : ""}</h2><button class="st" data-rdia="${d.id}" aria-label="Editar dia">✎</button></div>
+      ${[...d.itens].sort((a,b) => chaveHora(a).localeCompare(chaveHora(b))).map(i => `<div class="item">
+        <div><button class="nome" data-ritem="${d.id}|${i.id}"><span class="hora">${esc(i.hora||"")}</span>${esc(i.nome)}</button>
+          <small class="vazio" style="display:block">${esc(i.duracao||"")}${i.duracao && i.obs ? " · " : ""}${lk(i.obs||"")}</small>
+          ${+i.preco > 0 && r.passes.length ? `<div class="chips">${r.passes.map(p => `<span class="chip ${inc(i,p) ? "ok" : ""}">${esc(p.nome)} ${inc(i,p) ? "☑" : "☐"}</span>`).join("")}</div>` : ""}</div>
+        <span>${+i.preco > 0 ? L(tot(i)) : "Gratuito"}</span></div>`).join("")}
+      <div class="topo" style="margin-top:8px"><button class="st" data-radd="${d.id}">+ Item</button><span>Subtotal: <b>${L(soma(d.itens))}</b></span></div>
+    </section>`).join("")}
+    <button class="add" data-rnd="1" style="margin-bottom:12px">+ Adicionar dia</button>
+    <div class="card"><h2>Ingressos x passes</h2>
+      <table>
+        <tr><td>Total de ingressos pagos (${n} ${n===1 ? "pessoa" : "pessoas"})</td><td>${L(soma(pagos))}</td></tr>
+        <tr><td>Atrações fora de qualquer passe</td><td>${L(soma(pagos.filter(i => !r.passes.some(p => inc(i,p)))))}</td></tr>
+      </table>
+      ${r.passes.length ? `<div style="overflow-x:auto"><table><tr><th>Passe</th><th>Elegíveis</th><th>Preço</th><th>Resultado</th></tr>
+        ${r.passes.map(p => { const el = soma(pagos.filter(i => inc(i,p))), dif = el - p.preco;
+          return `<tr><td><button class="nome" data-rpe="${p.id}">${esc(p.nome)}</button></td><td>${L(el)}</td><td>${L(p.preco)}</td><td>${dif > 0 ? "Passe economiza " + L(dif) : "Avulso compensa " + L(-dif)}</td></tr>`; }).join("")}
+      </table></div>` : ""}
+      <button class="add" data-rpa="1">+ Adicionar passe</button>
+      <p class="vazio">Informe o preço do passe para o grupo todo, nos dias necessários. Toque no nome do passe para editar ou excluir.</p></div>`;
+}
+
+let ri = null, rdSel = null;
+function abrirItem(did, iid){
+  const d = estado.roteiro.dias.find(x => x.id === did), it = iid ? d.itens.find(x => x.id === iid) : null;
+  ri = {d, it};
+  $("di_t").textContent = it ? "Editar item" : "Novo item em " + rotuloDia(d);
+  $("di_hora").value = it ? (it.hora||"") : ""; $("di_nome").value = it ? it.nome : ""; $("di_dur").value = it ? (it.duracao||"") : "";
+  $("di_preco").value = it && it.preco ? it.preco : ""; $("di_obs").value = it ? (it.obs||"") : "";
+  $("di_passes").innerHTML = estado.roteiro.passes.map(p => `<label class="chk"><input type="checkbox" data-pid="${p.id}" ${it && it.pass && it.pass[p.id] ? "checked" : ""}> Incluso no ${esc(p.nome)}</label>`).join("");
+  $("di_exc").hidden = !it; $("di").showModal();
+}
+$("di_sal").onclick = () => {
+  const nome = $("di_nome").value.trim(); if (!nome) { $("di_nome").focus(); return; }
+  const it = ri.it || {id:"r" + Date.now()}, pass = {};
+  $("di_passes").querySelectorAll("input").forEach(c => { pass[c.dataset.pid] = c.checked; });
+  Object.assign(it, {hora:$("di_hora").value.trim(), nome, duracao:$("di_dur").value.trim(), preco:+$("di_preco").value || 0, obs:$("di_obs").value.trim(), pass});
+  if (!ri.it) ri.d.itens.push(it);
+  $("di").close(); tudo();
+};
+$("di_can").onclick = () => $("di").close();
+$("di_exc").onclick = () => { if (confirm("Excluir este item?")) { ri.d.itens = ri.d.itens.filter(x => x !== ri.it); $("di").close(); tudo(); } };
+
+function abrirDia(id){
+  rdSel = id ? estado.roteiro.dias.find(x => x.id === id) : null;
+  let data = rdSel ? rdSel.data : (viagem ? viagem.saida : "");
+  const ult = estado.roteiro.dias.map(d => d.data).sort().pop();
+  if (!rdSel && ult) { const [a,m,x] = ult.split("-").map(Number), t = new Date(a,m-1,x+1); data = t.getFullYear() + "-" + String(t.getMonth()+1).padStart(2,"0") + "-" + String(t.getDate()).padStart(2,"0"); }
+  $("dy_t").textContent = rdSel ? "Editar dia" : "Novo dia";
+  $("dy_data").value = data; $("dy_tit").value = rdSel ? (rdSel.titulo||"") : ""; $("dy_exc").hidden = !rdSel; $("dy").showModal();
+}
+$("dy_sal").onclick = () => {
+  const data = $("dy_data").value, titulo = $("dy_tit").value.trim();
+  if (!data) { alert("Informe a data do dia."); return; }
+  if (rdSel) Object.assign(rdSel, {data, titulo}); else estado.roteiro.dias.push({id:"y" + Date.now(), data, titulo, itens:[]});
+  $("dy").close(); tudo();
+};
+$("dy_can").onclick = () => $("dy").close();
+$("dy_exc").onclick = () => { if (confirm("Excluir este dia e todos os itens dele?")) { estado.roteiro.dias = estado.roteiro.dias.filter(x => x !== rdSel); $("dy").close(); tudo(); } };
+
+function editarMapa(){
+  const u = prompt("Cole o link do mapa (Google Earth, Meu Mapas ou outro):", estado.roteiro.mapa || "");
+  if (u !== null) { estado.roteiro.mapa = u.trim(); tudo(); }
+}
+function novoPasse(){
+  const nome = prompt("Nome do passe (ex.: London Pass):"); if (!nome || !nome.trim()) return;
+  const preco = parseFloat((prompt("Preço do passe para o grupo, na moeda local:") || "").replace(",", ".")) || 0;
+  estado.roteiro.passes.push({id:"p" + Date.now(), nome:nome.trim(), preco}); tudo();
+}
+function editarPasse(id){
+  const p = estado.roteiro.passes.find(x => x.id === id);
+  const v = prompt(`Preço de ${p.nome} para o grupo. Digite "excluir" para remover o passe.`, p.preco);
+  if (v === null) return;
+  if (v.trim().toLowerCase() === "excluir") estado.roteiro.passes = estado.roteiro.passes.filter(x => x !== p);
+  else p.preco = parseFloat(v.replace(",", ".")) || 0;
+  tudo();
+}
+
 function gastos(){
   $("gastos").innerHTML = estado.categorias.map(c =>
    `<section class="card">
@@ -411,10 +513,10 @@ function gastos(){
     </section>`).join("");
 }
 
-function tudo(){ salvar(); resumo(); gastos(); aportes(); dolar(); despesas(); }
+function tudo(){ salvar(); resumo(); gastos(); roteiro(); aportes(); dolar(); despesas(); }
 
 function abas(a){
-  ["resumo","gastos","aportes","cambio","despesas","dados"].forEach(x => { $(x).hidden = x!==a; });
+  ["resumo","gastos","roteiro","aportes","cambio","despesas","dados"].forEach(x => { $(x).hidden = x!==a; });
   document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("on", b.dataset.aba===a));
 }
 
@@ -449,6 +551,13 @@ document.addEventListener("click", e => {
   else if (b.id === "dp_add") addDesp();
   else if (b.id === "dp_auto") despAuto(true);
   else if (d.v) abrirViagem(d.v);
+  else if (d.rmapa) editarMapa();
+  else if (d.rdia) abrirDia(d.rdia);
+  else if (d.rnd) abrirDia(null);
+  else if (d.ritem) abrirItem(...d.ritem.split("|"));
+  else if (d.radd) abrirItem(d.radd);
+  else if (d.rpa) novoPasse();
+  else if (d.rpe) editarPasse(d.rpe);
   else if (d.nv) editarViagem(null);
   else if (d.volta) home();
   else if (d.ev) editarViagem(viagem.id);
@@ -482,7 +591,8 @@ $("arq").onchange = e => {
   const r = new FileReader();
   r.onload = () => {
     try { const d = JSON.parse(r.result); if (Array.isArray(d.categorias)) estado = d;
-      else if (d.aportes || d.conversoes) {
+      else if (d.aportes || d.conversoes || d.roteiro) {
+        if (d.roteiro) estado.roteiro = d.roteiro;
         if (d.aportes) estado.aportes = d.aportes;
         if (d.conversoes) estado.conversoes = d.conversoes;
         estado.config = Object.assign(estado.config, d.config || {});
